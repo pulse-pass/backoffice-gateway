@@ -1,0 +1,17 @@
+HELP.md
+target/
+.mvn/wrapper/maven-wrapper.jar
+
+.idea/
+*.iws
+*.iml
+*.ipr
+.vscode/
+.classpath
+.project
+.settings/
+.factorypath
+
+infrastructure/.env
+application-local.properties
+.DS_Store
