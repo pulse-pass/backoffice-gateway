@@ -16,7 +16,11 @@ paths:
 ## Method order
 - Private methods always **before** public ones, in the order they are used.
 - Prefer separate, clear `if`s over compound `||` conditions when each case has its own meaning.
-- No defensive validation; `try/catch` only around the call that actually throws (the HTTP call).
+
+## Code
+- No comments in code, configuration, scripts or Dockerfile (Javadoc included): names and structure must explain the code, and decisions go to the rules, the README or the task notes. The only exceptions are the version next to a workflow action pinned by SHA and generated or third-party files kept as they come (`mvnw`, `checkstyle.xml`).
+- No defensive validation (e.g. checking that a value from the environment is not empty); `try/catch` only around the call that actually throws (the HTTP call).
+- Keep it simple: compare strings with `equals`, no `MessageDigest.isEqual` or similar tricks.
 
 ## Forwarding
 - One `<Service>Controller` per target service (e.g. `OnboardingController`) with explicit routes, and one `<Service>Proxy extends ServiceProxy` per target service (e.g. `OnboardingServiceProxy`). The controller only calls `proxy.forward(method, path, request, body)`.
