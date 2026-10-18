@@ -8,12 +8,16 @@ Para subir o gateway só é necessário o Docker: a imagem compila a aplicação
 
 ```bash
 ./infrastructure/service-start.sh [test|development]
-./infrastructure/service-stop.sh
+./infrastructure/service-stop.sh [test|development]
 ```
 
-O script cria a rede `pulse-pass` e o `infrastructure/.env` (a partir do `.env.example`) quando não existem, derruba o que estiver no ar e sobe o gateway. O modo padrão é `test`, em que os serviços de destino são atendidos pelo MockServer. No modo `development` o gateway aponta para o `onboarding-service` real, que precisa estar no ar na rede `pulse-pass`. Para cada par `<NAME>_TEST_URL` / `<NAME>_DEVELOPMENT_URL` do `.env`, o script exporta `<NAME>_URL` conforme o modo, então novos serviços de destino não exigem mudar o script. O `service-stop.sh` remove containers, volumes e imagens locais.
+O script cria a rede `pulse-pass` e o `infrastructure/.env` (a partir do `.env.example`) quando não existem, derruba o ambiente do mesmo modo e sobe o gateway. O modo padrão é `test`, também no `service-stop.sh`. Para cada par `<NAME>_TEST_URL` / `<NAME>_DEVELOPMENT_URL` do `.env`, o script exporta `<NAME>_URL` conforme o modo, então novos serviços de destino não exigem mudar o script. Quem tem um `infrastructure/.env` criado antes desta organização deve apagá-lo, para que seja recriado a partir do `.env.example`.
 
-A API fica em `http://localhost:8090` (`API_PORT`) e, no modo `test`, o MockServer em `localhost:1090`. A origem liberada no CORS é a da aplicação do backoffice (`BACKOFFICE_APP_URL`, padrão `http://localhost:3000`).
+Modo `test`: o gateway é autossuficiente e sobe a API e um MockServer no lugar dos serviços de destino, no projeto `backoffice-gateway-test`. A API fica em `http://localhost:8090` (`API_PORT`) e o MockServer em `localhost:1090`. É o modo usado pela CI e pelos testes de integração. O `service-stop.sh test` remove containers, volumes e imagens locais desse modo.
+
+Modo `development`: sobe só a API (container `backoffice-gateway-api`, projeto `backoffice-gateway`), em `http://localhost:8190` (`DEVELOPMENT_API_PORT`), chamando os serviços reais pelo nome do container. O `onboarding-service` precisa estar de pé em modo `development` (`onboarding-service-api`). Como o gateway não tem banco, não há checagem da infraestrutura compartilhada. O `service-stop.sh development` derruba só esse modo.
+
+Os dois modos podem rodar ao mesmo tempo. As portas 3306, 6379, 9094 e 8180 são da infraestrutura compartilhada. A origem liberada no CORS é a da aplicação do backoffice (`BACKOFFICE_APP_URL`, padrão `http://localhost:3000`).
 
 ## Rotas
 

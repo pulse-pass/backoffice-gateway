@@ -55,7 +55,7 @@ jobs:
       - name: Show container logs on failure
         if: failure()
         working-directory: infrastructure
-        run: docker compose --profile test logs
+        run: docker compose -p backoffice-gateway-test --profile test logs
       - name: Stop local infrastructure
         if: always()
         run: ./infrastructure/service-stop.sh

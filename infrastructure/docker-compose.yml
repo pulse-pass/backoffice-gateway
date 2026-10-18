@@ -1,12 +1,12 @@
-name: backoffice-gateway
+name: backoffice-gateway-test
 
 services:
-  backoffice-gateway-mockserver:
+  mockserver:
     image: mockserver/mockserver:5.15.0
     profiles: [test]
-    container_name: backoffice-gateway-mockserver
+    container_name: ${SERVICE_PREFIX:-backoffice-gateway-test}-mockserver
     ports:
-      - "${MOCKSERVER_PORT}:1080"
+      - "${MOCKSERVER_PORT:-1090}:1080"
     volumes:
       - ./MockServerHealthcheck.java:/healthcheck/MockServerHealthcheck.java:ro
     healthcheck:
@@ -18,18 +18,18 @@ services:
     networks:
       - pulse-pass
 
-  backoffice-gateway-api:
+  api:
     build:
       context: ..
       dockerfile: Dockerfile
-    container_name: backoffice-gateway-api
+    container_name: ${SERVICE_PREFIX:-backoffice-gateway-test}-api
     env_file: .env
     environment:
-      ONBOARDING_SERVICE_URL: ${ONBOARDING_SERVICE_URL}
+      ONBOARDING_SERVICE_URL: ${ONBOARDING_SERVICE_URL:-http://backoffice-gateway-test-mockserver:1080}
     ports:
-      - "${API_PORT}:8080"
+      - "${PUBLISHED_API_PORT:-8090}:8080"
     depends_on:
-      backoffice-gateway-mockserver:
+      mockserver:
         condition: service_healthy
         required: false
     healthcheck:

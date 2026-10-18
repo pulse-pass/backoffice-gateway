@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
-# Usage: ./service-start.sh [test|development]
-# test:        external dependencies are served by mocks (MockServer).
-# development: external dependencies point to their sandbox environments.
-set -e
+set -eo pipefail
 
 MODE="${1:-test}"
 if [ "$MODE" != "test" ] && [ "$MODE" != "development" ]; then
@@ -18,13 +15,9 @@ if [ ! -f .env ]; then
     cp .env.example .env
 fi
 
-./service-stop.sh
-
 set -a
-# shellcheck disable=SC1091
 . ./.env
 
-# For every <NAME>_TEST_URL / <NAME>_DEVELOPMENT_URL pair, export <NAME>_URL for the chosen mode.
 SUFFIX="_$(echo "$MODE" | tr '[:lower:]' '[:upper:]')_URL"
 for var in $(grep -oE '^[A-Z0-9_]+(_TEST_URL|_DEVELOPMENT_URL)' .env | sort -u); do
     case "$var" in
@@ -36,11 +29,22 @@ for var in $(grep -oE '^[A-Z0-9_]+(_TEST_URL|_DEVELOPMENT_URL)' .env | sort -u);
 done
 set +a
 
-PROFILE_ARGS=()
 if [ "$MODE" = "test" ]; then
+    PROJECT="backoffice-gateway-test"
     PROFILE_ARGS=(--profile test)
+    export SERVICE_PREFIX="$PROJECT"
+    export PUBLISHED_API_PORT="${API_PORT:-8090}"
+
+    ./service-stop.sh test
+else
+    PROJECT="backoffice-gateway"
+    PROFILE_ARGS=()
+    export SERVICE_PREFIX="$PROJECT"
+    export PUBLISHED_API_PORT="${DEVELOPMENT_API_PORT:-8190}"
+
+    ./service-stop.sh development
 fi
 
-docker compose "${PROFILE_ARGS[@]}" up -d --build --wait
+docker compose -p "$PROJECT" "${PROFILE_ARGS[@]}" up -d --build --wait
 
-echo "backoffice-gateway is up in $MODE mode at http://localhost:${API_PORT}"
+echo "backoffice-gateway is up in $MODE mode at http://localhost:${PUBLISHED_API_PORT}"
