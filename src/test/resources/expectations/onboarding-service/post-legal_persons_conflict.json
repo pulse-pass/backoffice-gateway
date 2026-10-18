@@ -1,0 +1,18 @@
+{
+  "httpRequest": {
+    "method": "POST",
+    "path": "/onboarding/legal_persons"
+  },
+  "httpResponse": {
+    "statusCode": 409,
+    "headers": {
+      "Content-Type": ["application/json"]
+    },
+    "body": {
+      "title": "Conflict",
+      "message": "already registered",
+      "code": "ONB00001",
+      "extra_fields": []
+    }
+  }
+}

@@ -1,6 +1,6 @@
 package com.pulsepass.backofficegateway.integration;
 
-import com.pulsepass.backofficegateway.common.MockServerHandlers;
+import com.pulsepass.backofficegateway.common.MockTools;
 import io.restassured.RestAssured;
 import org.junit.jupiter.api.BeforeAll;
 
@@ -15,7 +15,7 @@ public abstract class BaseIntegrationTest {
     static void setup() {
         RestAssured.baseURI = env("API_BASE_URL", "http://localhost");
         RestAssured.port = Integer.parseInt(env("API_PORT", "8090"));
-        MockServerHandlers.configure(
+        MockTools.configure(
                 env("API_BASE_URL", "http://localhost"),
                 Integer.parseInt(env("MOCKSERVER_PORT", "1090"))
         );

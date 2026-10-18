@@ -1,0 +1,16 @@
+{
+  "httpRequest": {
+    "method": "POST",
+    "path": "/onboarding/legal_persons"
+  },
+  "httpResponse": {
+    "statusCode": 500,
+    "headers": {
+      "Content-Type": ["application/json"]
+    },
+    "body": {
+      "code": "GEN00500",
+      "message": "from target"
+    }
+  }
+}
