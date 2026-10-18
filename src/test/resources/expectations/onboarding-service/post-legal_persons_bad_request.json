@@ -1,0 +1,20 @@
+{
+  "httpRequest": {
+    "method": "POST",
+    "path": "/onboarding/legal_persons"
+  },
+  "httpResponse": {
+    "statusCode": 400,
+    "headers": {
+      "Content-Type": ["application/json"]
+    },
+    "body": {
+      "title": "Bad Request",
+      "message": "invalid",
+      "code": "GEN00400",
+      "extra_fields": [
+        {"field": "name", "error": "REQUIRED"}
+      ]
+    }
+  }
+}

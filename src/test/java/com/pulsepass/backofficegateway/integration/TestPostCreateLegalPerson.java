@@ -3,24 +3,27 @@ package com.pulsepass.backofficegateway.integration;
 import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.pulsepass.backofficegateway.common.MockServerHandlers;
+import com.pulsepass.backofficegateway.common.MockTools;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import org.junit.jupiter.api.Test;
 
 class TestPostCreateLegalPerson extends BaseIntegrationTest {
 
+    private static final String POST_LEGAL_PERSONS = "/legal_persons";
+
     @Test
     void createLegalPerson_targetCreated_returnsSameStatusBodyAndContentType() {
+        MockTools.clearMocker();
         String document = String.format("%014d", ThreadLocalRandom.current().nextLong(100_000_000_000_000L));
-        String body = "{\"person_key\":\"7f1c1a56-2b1b-4a53-9a43-1f2b5d3d1a11\",\"document_number\":\""
-                + document + "\"}";
-        MockServerHandlers.expectResponse(
-                "POST", MockServerHandlers.LEGAL_PERSONS_PATH, document, 201, "application/json", body);
+        String personKey = UUID.randomUUID().toString();
+        MockTools.addExpectation("onboarding-service/post-legal_persons", Map.of(),
+                Map.of("payload", Map.of("person_key", personKey, "document_number", document)));
 
         Response response = given()
                     .header("Accept-Language", "en")
@@ -28,24 +31,24 @@ class TestPostCreateLegalPerson extends BaseIntegrationTest {
                     .contentType(ContentType.JSON)
                     .body("{\"document_number\":\"" + document + "\",\"name\":\"Lenha Producoes\"}")
                 .when()
-                    .post("/legal_persons")
+                    .post(POST_LEGAL_PERSONS)
                 .then()
                     .extract().response();
 
         assertThat(response.statusCode()).isEqualTo(201);
-        assertThat(response.asString()).isEqualTo(body);
         assertThat(response.contentType()).isEqualTo("application/json");
-        assertThat(MockServerHandlers.verifyReceived("POST", MockServerHandlers.LEGAL_PERSONS_PATH, document))
-                .isTrue();
+        assertThat(response.jsonPath().getMap("$"))
+                .isEqualTo(Map.of("person_key", personKey, "document_number", document));
+        List<Map<String, Object>> requests = MockTools.retrieveRequests("POST", "/onboarding/legal_persons");
+        assertThat(requests).hasSize(1);
+        assertThat(requests.get(0).get("body").toString()).contains(document, "Lenha Producoes");
     }
 
     @Test
     void createLegalPerson_targetBadRequest_returnsSameErrorWithExtraFields() {
+        MockTools.clearMocker();
         String document = String.format("%014d", ThreadLocalRandom.current().nextLong(100_000_000_000_000L));
-        String body = "{\"title\":\"Bad Request\",\"message\":\"invalid\",\"code\":\"GEN00400\","
-                + "\"extra_fields\":[{\"field\":\"name\",\"error\":\"REQUIRED\"}]}";
-        MockServerHandlers.expectResponse(
-                "POST", MockServerHandlers.LEGAL_PERSONS_PATH, document, 400, "application/json", body);
+        MockTools.addExpectation("onboarding-service/post-legal_persons_bad_request");
 
         Response response = given()
                     .header("Accept-Language", "en")
@@ -53,23 +56,25 @@ class TestPostCreateLegalPerson extends BaseIntegrationTest {
                     .contentType(ContentType.JSON)
                     .body("{\"document_number\":\"" + document + "\",\"name\":\"Lenha Producoes\"}")
                 .when()
-                    .post("/legal_persons")
+                    .post(POST_LEGAL_PERSONS)
                 .then()
                     .extract().response();
 
         assertThat(response.statusCode()).isEqualTo(400);
-        assertThat(response.asString()).isEqualTo(body);
-        assertThat(response.jsonPath().getString("code")).isEqualTo("GEN00400");
-        assertThat(response.jsonPath().getList("extra_fields")).hasSize(1);
+        assertThat(response.contentType()).isEqualTo("application/json");
+        assertThat(response.jsonPath().getMap("$")).isEqualTo(Map.of(
+                "title", "Bad Request",
+                "message", "invalid",
+                "code", "GEN00400",
+                "extra_fields", List.of(Map.of("field", "name", "error", "REQUIRED"))
+        ));
     }
 
     @Test
     void createLegalPerson_targetConflict_returnsSameOnb00001() {
+        MockTools.clearMocker();
         String document = String.format("%014d", ThreadLocalRandom.current().nextLong(100_000_000_000_000L));
-        String body = "{\"title\":\"Conflict\",\"message\":\"already registered\",\"code\":\"ONB00001\","
-                + "\"extra_fields\":[]}";
-        MockServerHandlers.expectResponse(
-                "POST", MockServerHandlers.LEGAL_PERSONS_PATH, document, 409, "application/json", body);
+        MockTools.addExpectation("onboarding-service/post-legal_persons_conflict");
 
         Response response = given()
                     .header("Accept-Language", "en")
@@ -77,21 +82,25 @@ class TestPostCreateLegalPerson extends BaseIntegrationTest {
                     .contentType(ContentType.JSON)
                     .body("{\"document_number\":\"" + document + "\",\"name\":\"Lenha Producoes\"}")
                 .when()
-                    .post("/legal_persons")
+                    .post(POST_LEGAL_PERSONS)
                 .then()
                     .extract().response();
 
         assertThat(response.statusCode()).isEqualTo(409);
-        assertThat(response.asString()).isEqualTo(body);
-        assertThat(response.jsonPath().getString("code")).isEqualTo("ONB00001");
+        assertThat(response.contentType()).isEqualTo("application/json");
+        assertThat(response.jsonPath().getMap("$")).isEqualTo(Map.of(
+                "title", "Conflict",
+                "message", "already registered",
+                "code", "ONB00001",
+                "extra_fields", List.of()
+        ));
     }
 
     @Test
     void createLegalPerson_targetServerError_returnsSameStatusAndBody() {
+        MockTools.clearMocker();
         String document = String.format("%014d", ThreadLocalRandom.current().nextLong(100_000_000_000_000L));
-        String body = "{\"code\":\"GEN00500\",\"message\":\"from target\"}";
-        MockServerHandlers.expectResponse(
-                "POST", MockServerHandlers.LEGAL_PERSONS_PATH, document, 500, "application/json", body);
+        MockTools.addExpectation("onboarding-service/post-legal_persons_server_error");
 
         Response response = given()
                     .header("Accept-Language", "en")
@@ -99,20 +108,22 @@ class TestPostCreateLegalPerson extends BaseIntegrationTest {
                     .contentType(ContentType.JSON)
                     .body("{\"document_number\":\"" + document + "\",\"name\":\"Lenha Producoes\"}")
                 .when()
-                    .post("/legal_persons")
+                    .post(POST_LEGAL_PERSONS)
                 .then()
                     .extract().response();
 
         assertThat(response.statusCode()).isEqualTo(500);
-        assertThat(response.asString()).isEqualTo(body);
+        assertThat(response.contentType()).isEqualTo("application/json");
+        assertThat(response.jsonPath().getMap("$"))
+                .isEqualTo(Map.of("code", "GEN00500", "message", "from target"));
     }
 
     @Test
     @SuppressWarnings("unchecked")
     void createLegalPerson_headers_forwardsAcceptLanguageAndNeverInternalToken() {
+        MockTools.clearMocker();
         String document = String.format("%014d", ThreadLocalRandom.current().nextLong(100_000_000_000_000L));
-        MockServerHandlers.expectResponse(
-                "POST", MockServerHandlers.LEGAL_PERSONS_PATH, document, 201, "application/json", "{}");
+        MockTools.addExpectation("onboarding-service/post-legal_persons");
 
         given()
                     .header("Accept-Language", "pt-BR")
@@ -120,12 +131,11 @@ class TestPostCreateLegalPerson extends BaseIntegrationTest {
                     .contentType(ContentType.JSON)
                     .body("{\"document_number\":\"" + document + "\",\"name\":\"Lenha Producoes\"}")
                 .when()
-                    .post("/legal_persons")
+                    .post(POST_LEGAL_PERSONS)
                 .then()
                     .extract().response();
 
-        List<Map<String, Object>> requests = MockServerHandlers.retrieveRequests(
-                "POST", MockServerHandlers.LEGAL_PERSONS_PATH, document);
+        List<Map<String, Object>> requests = MockTools.retrieveRequests("POST", "/onboarding/legal_persons");
         assertThat(requests).hasSize(1);
         Map<String, List<String>> headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         headers.putAll((Map<String, List<String>>) requests.get(0).get("headers"));
@@ -137,8 +147,9 @@ class TestPostCreateLegalPerson extends BaseIntegrationTest {
 
     @Test
     void createLegalPerson_targetDropsConnection_returns500Gen00500WithoutDetails() {
+        MockTools.clearMocker();
         String document = String.format("%014d", ThreadLocalRandom.current().nextLong(100_000_000_000_000L));
-        MockServerHandlers.expectDroppedConnection("POST", MockServerHandlers.LEGAL_PERSONS_PATH, document);
+        MockTools.addExpectation("onboarding-service/post-legal_persons_dropped_connection");
 
         Response response = given()
                     .header("Accept-Language", "en")
@@ -146,7 +157,7 @@ class TestPostCreateLegalPerson extends BaseIntegrationTest {
                     .contentType(ContentType.JSON)
                     .body("{\"document_number\":\"" + document + "\",\"name\":\"Lenha Producoes\"}")
                 .when()
-                    .post("/legal_persons")
+                    .post(POST_LEGAL_PERSONS)
                 .then()
                     .extract().response();
 
@@ -160,8 +171,9 @@ class TestPostCreateLegalPerson extends BaseIntegrationTest {
 
     @Test
     void createLegalPerson_targetDropsConnectionInPortuguese_returnsTranslatedMessage() {
+        MockTools.clearMocker();
         String document = String.format("%014d", ThreadLocalRandom.current().nextLong(100_000_000_000_000L));
-        MockServerHandlers.expectDroppedConnection("POST", MockServerHandlers.LEGAL_PERSONS_PATH, document);
+        MockTools.addExpectation("onboarding-service/post-legal_persons_dropped_connection");
 
         Response response = given()
                     .header("Accept-Language", "pt-BR")
@@ -169,7 +181,7 @@ class TestPostCreateLegalPerson extends BaseIntegrationTest {
                     .contentType(ContentType.JSON)
                     .body("{\"document_number\":\"" + document + "\",\"name\":\"Lenha Producoes\"}")
                 .when()
-                    .post("/legal_persons")
+                    .post(POST_LEGAL_PERSONS)
                 .then()
                     .extract().response();
 
@@ -180,7 +192,9 @@ class TestPostCreateLegalPerson extends BaseIntegrationTest {
 
     @Test
     void createLegalPerson_getMethod_returns405Gen00405() {
-        Response response = given().when().get("/legal_persons").then().extract().response();
+        MockTools.clearMocker();
+
+        Response response = given().when().get(POST_LEGAL_PERSONS).then().extract().response();
 
         assertThat(response.statusCode()).isEqualTo(405);
         assertThat(response.jsonPath().getString("code")).isEqualTo("GEN00405");
@@ -188,6 +202,8 @@ class TestPostCreateLegalPerson extends BaseIntegrationTest {
 
     @Test
     void unknownRoute_getRequest_returns404Gen00404() {
+        MockTools.clearMocker();
+
         Response response = given().when().get("/unknown_route").then().extract().response();
 
         assertThat(response.statusCode()).isEqualTo(404);
@@ -197,11 +213,13 @@ class TestPostCreateLegalPerson extends BaseIntegrationTest {
 
     @Test
     void preflight_allowedOrigin_returnsAllowOriginHeader() {
+        MockTools.clearMocker();
+
         Response response = given()
                     .header("Origin", "http://localhost:3000")
                     .header("Access-Control-Request-Method", "POST")
                 .when()
-                    .options("/legal_persons")
+                    .options(POST_LEGAL_PERSONS)
                 .then()
                     .extract().response();
 
