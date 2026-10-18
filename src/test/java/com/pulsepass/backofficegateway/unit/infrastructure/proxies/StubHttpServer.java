@@ -11,10 +11,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-/**
- * Local HTTP server used by the proxy unit tests. Routes are registered as "METHOD /path"; any other request
- * answers 404. Every request received is recorded for later assertions.
- */
 public class StubHttpServer implements AutoCloseable {
 
     public record Response(int status, Map<String, String> headers, String body) {
