@@ -9,6 +9,8 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,6 +18,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.client.RestClient;
 
 class ServiceProxyTest {
@@ -200,6 +203,100 @@ class ServiceProxyTest {
         byte[] body = "{\"document_number\":\"11222333000181\"}".getBytes(StandardCharsets.UTF_8);
 
         assertThatThrownBy(() -> slow.forward(HttpMethod.POST, path, request, body))
+                .isInstanceOf(ServiceRequestException.class);
+    }
+
+    private Jwt jwt(Map<String, Object> claims) {
+        return new Jwt("token", Instant.now(), Instant.now().plusSeconds(60), Map.of("alg", "RS256"), claims);
+    }
+
+    @Test
+    void forward_organizerJwt_sendsSelectedUserAndAgentKeys() {
+        String path = "/onboarding/auth/logout";
+        stub.on("POST", path, StubHttpServer.Response.empty(204));
+        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder());
+        Jwt jwt = jwt(Map.of("person_key", "person-1", "legal_person_key", "legal-1"));
+
+        var response = proxy.forward(HttpMethod.POST, path, request, "{}".getBytes(), jwt);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(204);
+        assertThat(stub.received().get(0).headers())
+                .containsEntry("selected-user-key", "person-1")
+                .containsEntry("selected-agent-key", "legal-1");
+    }
+
+    @Test
+    void forward_adminJwtWithoutLegalPersonKey_sendsOnlySelectedUserKey() {
+        String path = "/onboarding/auth/logout";
+        stub.on("POST", path, StubHttpServer.Response.empty(204));
+        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder());
+        Jwt jwt = jwt(Map.of("person_key", "person-1"));
+
+        proxy.forward(HttpMethod.POST, path, request, "{}".getBytes(), jwt);
+
+        assertThat(stub.received().get(0).headers())
+                .containsEntry("selected-user-key", "person-1")
+                .doesNotContainKey("selected-agent-key");
+    }
+
+    @Test
+    void forward_clientSendsSelectedHeaders_overridesThemWithJwtClaims() {
+        String path = "/onboarding/auth/logout";
+        stub.on("POST", path, StubHttpServer.Response.empty(204));
+        request.addHeader("selected-user-key", "forged-user");
+        request.addHeader("selected-agent-key", "forged-agent");
+        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder());
+        Jwt jwt = jwt(Map.of("person_key", "person-1", "legal_person_key", "legal-1"));
+
+        proxy.forward(HttpMethod.POST, path, request, "{}".getBytes(), jwt);
+
+        assertThat(stub.received().get(0).headers())
+                .containsEntry("selected-user-key", "person-1")
+                .containsEntry("selected-agent-key", "legal-1");
+    }
+
+    @Test
+    void forward_clientSendsSelectedHeadersWithoutJwt_doesNotSendThem() {
+        String path = "/onboarding/auth/login";
+        stub.on("POST", path, StubHttpServer.Response.of(200, "{}"));
+        request.addHeader("selected-user-key", "forged-user");
+        request.addHeader("selected-agent-key", "forged-agent");
+        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder());
+
+        proxy.forward(HttpMethod.POST, path, request, "{}".getBytes());
+
+        assertThat(stub.received().get(0).headers())
+                .doesNotContainKey("selected-user-key")
+                .doesNotContainKey("selected-agent-key");
+    }
+
+    @Test
+    void forward_jwtWithAuthorizationAndInternalToken_neverSendsThem() {
+        String path = "/onboarding/auth/logout";
+        stub.on("POST", path, StubHttpServer.Response.empty(204));
+        request.addHeader("Authorization", "Bearer abc");
+        request.addHeader("internal-token", "secret");
+        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder());
+        Jwt jwt = jwt(Map.of("person_key", "person-1"));
+
+        proxy.forward(HttpMethod.POST, path, request, "{}".getBytes(), jwt);
+
+        assertThat(stub.received().get(0).headers())
+                .doesNotContainKey("authorization")
+                .doesNotContainKey("internal-token");
+    }
+
+    @Test
+    void forward_jwtAndConnectionRefused_throwsServiceRequestException() throws IOException {
+        int closedPort;
+        try (ServerSocket socket = new ServerSocket(0)) {
+            closedPort = socket.getLocalPort();
+        }
+        var unreachable = new OnboardingServiceProxy("http://127.0.0.1:" + closedPort, RestClient.builder());
+        Jwt jwt = jwt(Map.of("person_key", "person-1"));
+
+        assertThatThrownBy(() -> unreachable.forward(
+                HttpMethod.POST, "/onboarding/auth/logout", request, "{}".getBytes(), jwt))
                 .isInstanceOf(ServiceRequestException.class);
     }
 }

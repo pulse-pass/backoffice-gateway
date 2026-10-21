@@ -4,8 +4,10 @@ import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.pulsepass.backofficegateway.common.MockTools;
+import com.pulsepass.backofficegateway.common.TokenTools;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -193,8 +195,15 @@ class TestPostCreateLegalPerson extends BaseIntegrationTest {
     @Test
     void createLegalPerson_getMethod_returns405Gen00405() {
         MockTools.clearMocker();
+        String token = TokenTools.sign("http://pulse-pass-keycloak:8080/realms/pulse-pass", Instant.now().minusSeconds(60),
+                Instant.now().plusSeconds(300), Map.of("realm_access", Map.of("roles", List.of("admin"))));
 
-        Response response = given().when().get(POST_LEGAL_PERSONS).then().extract().response();
+        Response response = given()
+                    .header("Authorization", "Bearer " + token)
+                .when()
+                    .get(POST_LEGAL_PERSONS)
+                .then()
+                    .extract().response();
 
         assertThat(response.statusCode()).isEqualTo(405);
         assertThat(response.jsonPath().getString("code")).isEqualTo("GEN00405");
@@ -203,12 +212,60 @@ class TestPostCreateLegalPerson extends BaseIntegrationTest {
     @Test
     void unknownRoute_getRequest_returns404Gen00404() {
         MockTools.clearMocker();
+        String token = TokenTools.sign("http://pulse-pass-keycloak:8080/realms/pulse-pass", Instant.now().minusSeconds(60),
+                Instant.now().plusSeconds(300), Map.of("realm_access", Map.of("roles", List.of("admin"))));
 
-        Response response = given().when().get("/unknown_route").then().extract().response();
+        Response response = given()
+                    .header("Authorization", "Bearer " + token)
+                .when()
+                    .get("/unknown_route")
+                .then()
+                    .extract().response();
 
         assertThat(response.statusCode()).isEqualTo(404);
         assertThat(response.jsonPath().getString("code")).isEqualTo("GEN00404");
         assertThat(response.jsonPath().getList("extra_fields")).isEmpty();
+    }
+
+    @Test
+    void createLegalPerson_expiredBearerToken_isIgnoredAndForwarded() {
+        MockTools.clearMocker();
+        MockTools.addExpectation("onboarding-service/post-legal_persons");
+        String token = TokenTools.sign("http://pulse-pass-keycloak:8080/realms/pulse-pass", Instant.now().minusSeconds(600),
+                Instant.now().minusSeconds(300), Map.of("realm_access", Map.of("roles", List.of("organizer"))));
+
+        Response response = given()
+                    .header("Authorization", "Bearer " + token)
+                    .contentType(ContentType.JSON)
+                    .body(Map.of("document_number", "12345678000190", "name", "Lenha Producoes"))
+                .when()
+                    .post(POST_LEGAL_PERSONS)
+                .then()
+                    .extract().response();
+
+        assertThat(response.statusCode()).isEqualTo(201);
+        assertThat(MockTools.retrieveRequests("POST", "/onboarding/legal_persons")).hasSize(1);
+    }
+
+    @Test
+    void createLegalPerson_tamperedBearerToken_isIgnoredAndForwarded() {
+        MockTools.clearMocker();
+        MockTools.addExpectation("onboarding-service/post-legal_persons");
+        String signed = TokenTools.sign("http://pulse-pass-keycloak:8080/realms/pulse-pass", Instant.now().minusSeconds(60),
+                Instant.now().plusSeconds(300), Map.of("realm_access", Map.of("roles", List.of("organizer"))));
+        String token = signed.substring(0, signed.lastIndexOf('.') + 1) + "invalidsignature";
+
+        Response response = given()
+                    .header("Authorization", "Bearer " + token)
+                    .contentType(ContentType.JSON)
+                    .body(Map.of("document_number", "12345678000190", "name", "Lenha Producoes"))
+                .when()
+                    .post(POST_LEGAL_PERSONS)
+                .then()
+                    .extract().response();
+
+        assertThat(response.statusCode()).isEqualTo(201);
+        assertThat(MockTools.retrieveRequests("POST", "/onboarding/legal_persons")).hasSize(1);
     }
 
     @Test

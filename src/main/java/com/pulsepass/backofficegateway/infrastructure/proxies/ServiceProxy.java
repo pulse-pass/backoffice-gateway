@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
@@ -51,6 +52,45 @@ public abstract class ServiceProxy {
         RestClient.RequestBodySpec spec = this.restClient.method(method)
                 .uri(targetUri(path, request.getQueryString()))
                 .headers(headers -> copyHeaders(request, headers));
+        if (body != null) {
+            spec.body(body);
+        }
+
+        try {
+            return spec.exchange((forwardedRequest, response) -> {
+                byte[] responseBody = response.getBody().readAllBytes();
+                return ResponseEntity
+                        .status(response.getStatusCode())
+                        .contentType(response.getHeaders().getContentType())
+                        .body(responseBody.length == 0 ? null : responseBody);
+            });
+        } catch (RestClientException ex) {
+            logger.error(
+                    "ServiceProxy.forward - Request failed {}",
+                    Map.of("service", this.serviceName, "method", method.name(), "path", path),
+                    ex
+            );
+            throw new ServiceRequestException(ex);
+        }
+    }
+
+    public ResponseEntity<byte[]> forward(
+            HttpMethod method,
+            String path,
+            HttpServletRequest request,
+            byte[] body,
+            Jwt jwt
+    ) {
+        RestClient.RequestBodySpec spec = this.restClient.method(method)
+                .uri(targetUri(path, request.getQueryString()))
+                .headers(headers -> {
+                    copyHeaders(request, headers);
+                    headers.set("selected-user-key", jwt.getClaimAsString("person_key"));
+                    String legalPersonKey = jwt.getClaimAsString("legal_person_key");
+                    if (legalPersonKey != null) {
+                        headers.set("selected-agent-key", legalPersonKey);
+                    }
+                });
         if (body != null) {
             spec.body(body);
         }
