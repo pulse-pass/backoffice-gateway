@@ -15,6 +15,7 @@ import org.springframework.context.support.StaticMessageSource;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.MissingRequestCookieException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 class GlobalExceptionHandlerTest {
@@ -25,6 +26,7 @@ class GlobalExceptionHandlerTest {
     void setUp() {
         StaticMessageSource messages = new StaticMessageSource();
         messages.addMessage("error.internal", Locale.ENGLISH, "internal");
+        messages.addMessage("error.unauthorized", Locale.ENGLISH, "unauthorized");
         messages.addMessage("error.not_found", Locale.ENGLISH, "not found");
         messages.addMessage("error.method_not_allowed", Locale.ENGLISH, "method not allowed");
         handler = new GlobalExceptionHandler(messages);
@@ -43,6 +45,15 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
         assertThat(response.getBody()).isEqualTo(
                 new ErrorResponse("Internal Server Error", "internal", "GEN00500", List.of()));
+    }
+
+    @Test
+    void handleMissingCookie_missingRefreshCookie_returns401WithGen00401() {
+        var response = handler.handleMissingCookie(new MissingRequestCookieException("c", null));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(response.getBody()).isEqualTo(
+                new ErrorResponse("Unauthorized", "unauthorized", "GEN00401", List.of()));
     }
 
     @Test

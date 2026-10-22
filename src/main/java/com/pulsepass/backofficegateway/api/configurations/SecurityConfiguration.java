@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -18,9 +19,12 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
-import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
-import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationProvider;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
+import org.springframework.security.web.authentication.AuthenticationEntryPointFailureHandler;
+import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
@@ -48,6 +52,17 @@ public class SecurityConfiguration {
         return converter;
     }
 
+    private BearerTokenAuthenticationFilter sessionAuthenticationFilter(RequestMatcher publicRoutes)
+            throws GeneralSecurityException {
+        JwtAuthenticationProvider provider = new JwtAuthenticationProvider(this.jwtDecoder());
+        provider.setJwtAuthenticationConverter(this.jwtAuthenticationConverter());
+        BearerTokenAuthenticationFilter filter = new BearerTokenAuthenticationFilter(new ProviderManager(provider));
+        filter.setBearerTokenResolver(new CookieBearerTokenResolver(publicRoutes));
+        filter.setAuthenticationEntryPoint(this.securityErrorHandler);
+        filter.setAuthenticationFailureHandler(new AuthenticationEntryPointFailureHandler(this.securityErrorHandler));
+        return filter;
+    }
+
     private RequestMatcher publicRoutes() {
         PathPatternRequestMatcher.Builder matchers = PathPatternRequestMatcher.withDefaults();
         return new OrRequestMatcher(
@@ -57,11 +72,6 @@ public class SecurityConfiguration {
                 matchers.matcher(HttpMethod.POST, "/auth/refresh"),
                 matchers.matcher(HttpMethod.GET, "/actuator/health/**")
         );
-    }
-
-    private BearerTokenResolver bearerTokenResolver(RequestMatcher publicRoutes) {
-        DefaultBearerTokenResolver resolver = new DefaultBearerTokenResolver();
-        return request -> publicRoutes.matches(request) ? null : resolver.resolve(request);
     }
 
     @Bean
@@ -78,7 +88,7 @@ public class SecurityConfiguration {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         RequestMatcher publicRoutes = this.publicRoutes();
         return http
-                .csrf(csrf -> csrf.requireCsrfProtectionMatcher(request -> false))
+                .csrf(csrf -> csrf.spa())
                 .cors(Customizer.withDefaults())
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
@@ -86,15 +96,13 @@ public class SecurityConfiguration {
                 .authorizeHttpRequests(requests -> requests
                         .requestMatchers(publicRoutes).permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/logout").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/auth/me").authenticated()
                         .anyRequest().hasAnyRole("ORGANIZER", "ADMIN"))
                 .exceptionHandling(handling -> handling
                         .authenticationEntryPoint(this.securityErrorHandler)
                         .accessDeniedHandler(this.securityErrorHandler))
-                .oauth2ResourceServer(resourceServer -> resourceServer
-                        .bearerTokenResolver(this.bearerTokenResolver(publicRoutes))
-                        .jwt(jwt -> jwt.jwtAuthenticationConverter(this.jwtAuthenticationConverter()))
-                        .authenticationEntryPoint(this.securityErrorHandler)
-                        .accessDeniedHandler(this.securityErrorHandler))
+                .addFilterAfter(new CsrfCookieFilter(), CsrfFilter.class)
+                .addFilterBefore(this.sessionAuthenticationFilter(publicRoutes), AuthorizationFilter.class)
                 .build();
     }
 }

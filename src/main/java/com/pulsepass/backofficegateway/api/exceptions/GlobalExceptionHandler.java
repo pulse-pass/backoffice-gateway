@@ -10,6 +10,7 @@ import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.MissingRequestCookieException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
@@ -40,6 +41,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ServiceRequestException.class)
     public ResponseEntity<ErrorResponse> handleServiceRequest(ServiceRequestException ex) {
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "error.internal", "GEN00500", List.of());
+    }
+
+    @ExceptionHandler(MissingRequestCookieException.class)
+    public ResponseEntity<ErrorResponse> handleMissingCookie(MissingRequestCookieException ex) {
+        return build(HttpStatus.UNAUTHORIZED, "error.unauthorized", "GEN00401", List.of());
     }
 
     @ExceptionHandler(NoResourceFoundException.class)
