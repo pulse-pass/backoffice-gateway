@@ -1,0 +1,17 @@
+{
+  "httpRequest": {
+    "method": "GET",
+    "path": "/onboarding/auth/me"
+  },
+  "httpResponse": {
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": ["application/json"]
+    },
+    "body": {
+      "person_key": "person-from-target",
+      "name": "Maria Souza",
+      "roles": ["organizer"]
+    }
+  }
+}

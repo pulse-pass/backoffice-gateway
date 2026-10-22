@@ -21,7 +21,11 @@ Os dois modos podem rodar ao mesmo tempo. As portas 3306, 6379, 9094 e 8180 são
 
 ## Rotas
 
-`POST /legal_persons` (pública) é o autocadastro da empresa organizadora. O gateway repassa a chamada para `POST /onboarding/legal_persons` do `onboarding-service`: as rotas são expostas sem o prefixo do serviço, e o prefixo é acrescentado no repasse. A validação do token JWT das demais rotas ainda não existe nesta etapa.
+`POST /legal_persons` (pública) é o autocadastro da empresa organizadora. O gateway repassa a chamada para `POST /onboarding/legal_persons` do `onboarding-service`: as rotas são expostas sem o prefixo do serviço, e o prefixo é acrescentado no repasse.
+
+`POST /auth/login` e `POST /auth/refresh` (públicas) são repassadas para `/onboarding/auth/login` e `/onboarding/auth/refresh`. `POST /auth/logout` exige um token válido de qualquer papel (para que o comprador que tentou entrar no backoffice consiga encerrar a sessão) e é repassada para `/onboarding/auth/logout` com os cabeçalhos `selected-user-key` (claim `person_key`) e `selected-agent-key` (claim `legal_person_key`, ausente para o administrador).
+
+O gateway valida o JWT localmente, sem consultar o Keycloak: a assinatura RS256 usa a chave pública de `JWT_PUBLIC_KEY` (base64 do X.509 DER, em uma linha) e o emissor deve ser `JWT_ISSUER` (`http://pulse-pass-keycloak:8080/realms/pulse-pass` nos dois modos, o par fixo do realm de desenvolvimento). As rotas públicas ignoram o cabeçalho `Authorization`: um Bearer expirado ou inválido nelas não gera 401. Todas as demais rotas, exceto o logout, exigem o papel `organizer` ou `admin` (`realm_access.roles`). Token ausente, malformado, expirado, de outro emissor ou com assinatura inválida responde 401 `GEN00401`; token válido sem o papel responde 403 `GEN00403`.
 
 O repasse é cru, sem esquema nem DTO. O corpo, a query string e os cabeçalhos `Content-Type` e `Accept-Language` seguem para o destino; `internal-token` e `Authorization` nunca seguem, e as rotas `/<serviço>/internal/**` não são expostas. A resposta volta igual à do serviço, com o mesmo status, o mesmo corpo e o mesmo `Content-Type`, qualquer que seja o status (201, 400, 409, 415, 500).
 

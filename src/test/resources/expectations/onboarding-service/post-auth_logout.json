@@ -1,0 +1,9 @@
+{
+  "httpRequest": {
+    "method": "POST",
+    "path": "/onboarding/auth/logout"
+  },
+  "httpResponse": {
+    "statusCode": 204
+  }
+}

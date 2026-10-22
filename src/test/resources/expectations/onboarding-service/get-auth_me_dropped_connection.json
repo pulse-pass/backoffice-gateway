@@ -1,0 +1,9 @@
+{
+  "httpRequest": {
+    "method": "GET",
+    "path": "/onboarding/auth/me"
+  },
+  "httpError": {
+    "dropConnection": true
+  }
+}

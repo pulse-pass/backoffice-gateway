@@ -1,0 +1,18 @@
+{
+  "httpRequest": {
+    "method": "POST",
+    "path": "/onboarding/auth/refresh"
+  },
+  "httpResponse": {
+    "statusCode": 401,
+    "headers": {
+      "Content-Type": ["application/json"]
+    },
+    "body": {
+      "title": "Unauthorized",
+      "message": "rejected by target",
+      "code": "GEN00401",
+      "extra_fields": []
+    }
+  }
+}
