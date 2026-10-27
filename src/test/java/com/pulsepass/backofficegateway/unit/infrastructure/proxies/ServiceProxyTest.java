@@ -21,8 +21,11 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.client.RestClient;
+import tools.jackson.databind.json.JsonMapper;
 
 class ServiceProxyTest {
+
+    private static final JsonMapper JSON_MAPPER = JsonMapper.builder().build();
 
     private StubHttpServer stub;
     private MockHttpServletRequest request;
@@ -43,9 +46,9 @@ class ServiceProxyTest {
         String path = "/onboarding/legal_persons";
         byte[] body = "{\"document_number\":\"11222333000181\"}".getBytes(StandardCharsets.UTF_8);
         stub.on("POST", path, StubHttpServer.Response.of(201, "{\"person_key\":\"abc\"}"));
-        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder());
+        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder(), JSON_MAPPER);
 
-        var response = proxy.forward(HttpMethod.POST, path, request, body);
+        var response = proxy.forward(HttpMethod.POST, path, request, null, body, null);
 
         assertThat(response.getStatusCode().value()).isEqualTo(201);
         assertThat(new String(response.getBody(), StandardCharsets.UTF_8)).isEqualTo("{\"person_key\":\"abc\"}");
@@ -57,9 +60,9 @@ class ServiceProxyTest {
         String path = "/onboarding/legal_persons";
         byte[] body = "{\"document_number\":\"11222333000181\"}".getBytes(StandardCharsets.UTF_8);
         stub.on("POST", path, StubHttpServer.Response.of(400, "{\"code\":\"GEN00400\"}"));
-        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder());
+        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder(), JSON_MAPPER);
 
-        var response = proxy.forward(HttpMethod.POST, path, request, body);
+        var response = proxy.forward(HttpMethod.POST, path, request, null, body, null);
 
         assertThat(response.getStatusCode().value()).isEqualTo(400);
         assertThat(new String(response.getBody(), StandardCharsets.UTF_8)).isEqualTo("{\"code\":\"GEN00400\"}");
@@ -70,9 +73,9 @@ class ServiceProxyTest {
         String path = "/onboarding/legal_persons";
         byte[] body = "{\"document_number\":\"11222333000181\"}".getBytes(StandardCharsets.UTF_8);
         stub.on("POST", path, StubHttpServer.Response.of(409, "{\"code\":\"ONB00001\"}"));
-        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder());
+        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder(), JSON_MAPPER);
 
-        var response = proxy.forward(HttpMethod.POST, path, request, body);
+        var response = proxy.forward(HttpMethod.POST, path, request, null, body, null);
 
         assertThat(response.getStatusCode().value()).isEqualTo(409);
         assertThat(new String(response.getBody(), StandardCharsets.UTF_8)).isEqualTo("{\"code\":\"ONB00001\"}");
@@ -83,9 +86,9 @@ class ServiceProxyTest {
         String path = "/onboarding/legal_persons";
         byte[] body = "{\"document_number\":\"11222333000181\"}".getBytes(StandardCharsets.UTF_8);
         stub.on("POST", path, StubHttpServer.Response.of(500, "{\"code\":\"GEN00500\"}"));
-        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder());
+        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder(), JSON_MAPPER);
 
-        var response = proxy.forward(HttpMethod.POST, path, request, body);
+        var response = proxy.forward(HttpMethod.POST, path, request, null, body, null);
 
         assertThat(response.getStatusCode().value()).isEqualTo(500);
         assertThat(new String(response.getBody(), StandardCharsets.UTF_8)).isEqualTo("{\"code\":\"GEN00500\"}");
@@ -96,9 +99,9 @@ class ServiceProxyTest {
         String path = "/onboarding/legal_persons";
         byte[] body = "{\"document_number\":\"11222333000181\"}".getBytes(StandardCharsets.UTF_8);
         stub.on("POST", path, StubHttpServer.Response.empty(204));
-        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder());
+        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder(), JSON_MAPPER);
 
-        var response = proxy.forward(HttpMethod.POST, path, request, body);
+        var response = proxy.forward(HttpMethod.POST, path, request, null, body, null);
 
         assertThat(response.getStatusCode().value()).isEqualTo(204);
         assertThat(response.getHeaders().getContentType()).isNull();
@@ -110,9 +113,9 @@ class ServiceProxyTest {
         String path = "/onboarding/legal_persons";
         byte[] body = "{\"document_number\":\"11222333000181\"}".getBytes(StandardCharsets.UTF_8);
         stub.on("POST", path, StubHttpServer.Response.of(201, "{}"));
-        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder());
+        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder(), JSON_MAPPER);
 
-        proxy.forward(HttpMethod.POST, path, request, body);
+        proxy.forward(HttpMethod.POST, path, request, null, body, null);
 
         assertThat(stub.received()).hasSize(1);
         assertThat(stub.received().get(0).method()).isEqualTo("POST");
@@ -124,9 +127,9 @@ class ServiceProxyTest {
     void forward_requestWithoutBody_sendsEmptyBodyToTarget() {
         String path = "/onboarding/legal_persons";
         stub.on("POST", path, StubHttpServer.Response.of(400, "{}"));
-        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder());
+        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder(), JSON_MAPPER);
 
-        var response = proxy.forward(HttpMethod.POST, path, request, null);
+        var response = proxy.forward(HttpMethod.POST, path, request, null, null, null);
 
         assertThat(response.getStatusCode().value()).isEqualTo(400);
         assertThat(stub.received().get(0).body()).isEmpty();
@@ -138,10 +141,10 @@ class ServiceProxyTest {
         stub.on("POST", path, StubHttpServer.Response.of(201, "{}"));
         request.addHeader("Content-Type", "application/json");
         request.addHeader("Accept-Language", "pt-BR");
-        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder());
+        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder(), JSON_MAPPER);
         byte[] body = "{\"document_number\":\"11222333000181\"}".getBytes(StandardCharsets.UTF_8);
 
-        proxy.forward(HttpMethod.POST, path, request, body);
+        proxy.forward(HttpMethod.POST, path, request, null, body, null);
 
         assertThat(stub.received().get(0).headers())
                 .containsEntry("content-type", "application/json")
@@ -154,10 +157,10 @@ class ServiceProxyTest {
         stub.on("POST", path, StubHttpServer.Response.of(201, "{}"));
         request.addHeader("internal-token", "secret");
         request.addHeader("Authorization", "Bearer abc");
-        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder());
+        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder(), JSON_MAPPER);
         byte[] body = "{\"document_number\":\"11222333000181\"}".getBytes(StandardCharsets.UTF_8);
 
-        proxy.forward(HttpMethod.POST, path, request, body);
+        proxy.forward(HttpMethod.POST, path, request, null, body, null);
 
         assertThat(stub.received().get(0).headers())
                 .doesNotContainKey("internal-token")
@@ -170,9 +173,9 @@ class ServiceProxyTest {
         byte[] body = "{\"document_number\":\"11222333000181\"}".getBytes(StandardCharsets.UTF_8);
         stub.on("POST", path, StubHttpServer.Response.of(201, "{}"));
         request.setQueryString("a=1&b=x%20y");
-        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder());
+        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder(), JSON_MAPPER);
 
-        proxy.forward(HttpMethod.POST, path, request, body);
+        proxy.forward(HttpMethod.POST, path, request, null, body, null);
 
         assertThat(stub.received().get(0).query()).isEqualTo("a=1&b=x%20y");
     }
@@ -185,10 +188,10 @@ class ServiceProxyTest {
             closedPort = socket.getLocalPort();
         }
         var unreachable = new OnboardingServiceProxy(
-                "http://127.0.0.1:" + closedPort, RestClient.builder());
+                "http://127.0.0.1:" + closedPort, RestClient.builder(), JSON_MAPPER);
         byte[] body = "{\"document_number\":\"11222333000181\"}".getBytes(StandardCharsets.UTF_8);
 
-        assertThatThrownBy(() -> unreachable.forward(HttpMethod.POST, path, request, body))
+        assertThatThrownBy(() -> unreachable.forward(HttpMethod.POST, path, request, null, body, null))
                 .isInstanceOf(ServiceRequestException.class);
     }
 
@@ -200,10 +203,10 @@ class ServiceProxyTest {
         var factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(Duration.ofSeconds(1));
         factory.setReadTimeout(Duration.ofMillis(300));
-        var slow = new OnboardingServiceProxy(stub.url(), RestClient.builder().requestFactory(factory));
+        var slow = new OnboardingServiceProxy(stub.url(), RestClient.builder().requestFactory(factory), JSON_MAPPER);
         byte[] body = "{\"document_number\":\"11222333000181\"}".getBytes(StandardCharsets.UTF_8);
 
-        assertThatThrownBy(() -> slow.forward(HttpMethod.POST, path, request, body))
+        assertThatThrownBy(() -> slow.forward(HttpMethod.POST, path, request, null, body, null))
                 .isInstanceOf(ServiceRequestException.class);
     }
 
@@ -215,11 +218,11 @@ class ServiceProxyTest {
     void forward_organizerJwt_sendsSelectedUserAndAgentKeys() {
         String path = "/onboarding/auth/logout";
         stub.on("POST", path, StubHttpServer.Response.empty(204));
-        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder());
+        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder(), JSON_MAPPER);
         Jwt jwt = jwt(Map.of("person_key", "person-1", "legal_person_key", "legal-1",
                 "realm_access", Map.of("roles", List.of("organizer"))));
 
-        var response = proxy.forward(HttpMethod.POST, path, request, "{}".getBytes(), jwt);
+        var response = proxy.forward(HttpMethod.POST, path, request, null, "{}".getBytes(), jwt);
 
         assertThat(response.getStatusCode().value()).isEqualTo(204);
         assertThat(stub.received().get(0).headers())
@@ -231,10 +234,10 @@ class ServiceProxyTest {
     void forward_adminJwtWithoutLegalPersonKey_sendsOnlySelectedUserKey() {
         String path = "/onboarding/auth/logout";
         stub.on("POST", path, StubHttpServer.Response.empty(204));
-        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder());
+        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder(), JSON_MAPPER);
         Jwt jwt = jwt(Map.of("person_key", "person-1", "realm_access", Map.of("roles", List.of("admin"))));
 
-        proxy.forward(HttpMethod.POST, path, request, "{}".getBytes(), jwt);
+        proxy.forward(HttpMethod.POST, path, request, null, "{}".getBytes(), jwt);
 
         assertThat(stub.received().get(0).headers())
                 .containsEntry("selected-user-key", "person-1")
@@ -247,11 +250,11 @@ class ServiceProxyTest {
         stub.on("POST", path, StubHttpServer.Response.empty(204));
         request.addHeader("selected-user-key", "forged-user");
         request.addHeader("selected-agent-key", "forged-agent");
-        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder());
+        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder(), JSON_MAPPER);
         Jwt jwt = jwt(Map.of("person_key", "person-1", "legal_person_key", "legal-1",
                 "realm_access", Map.of("roles", List.of("organizer"))));
 
-        proxy.forward(HttpMethod.POST, path, request, "{}".getBytes(), jwt);
+        proxy.forward(HttpMethod.POST, path, request, null, "{}".getBytes(), jwt);
 
         assertThat(stub.received().get(0).headers())
                 .containsEntry("selected-user-key", "person-1")
@@ -264,9 +267,9 @@ class ServiceProxyTest {
         stub.on("POST", path, StubHttpServer.Response.of(200, "{}"));
         request.addHeader("selected-user-key", "forged-user");
         request.addHeader("selected-agent-key", "forged-agent");
-        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder());
+        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder(), JSON_MAPPER);
 
-        proxy.forward(HttpMethod.POST, path, request, "{}".getBytes());
+        proxy.forward(HttpMethod.POST, path, request, null, "{}".getBytes(), null);
 
         assertThat(stub.received().get(0).headers())
                 .doesNotContainKey("selected-user-key")
@@ -279,10 +282,10 @@ class ServiceProxyTest {
         stub.on("POST", path, StubHttpServer.Response.empty(204));
         request.addHeader("Authorization", "Bearer abc");
         request.addHeader("internal-token", "secret");
-        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder());
+        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder(), JSON_MAPPER);
         Jwt jwt = jwt(Map.of("person_key", "person-1", "realm_access", Map.of("roles", List.of("admin"))));
 
-        proxy.forward(HttpMethod.POST, path, request, "{}".getBytes(), jwt);
+        proxy.forward(HttpMethod.POST, path, request, null, "{}".getBytes(), jwt);
 
         assertThat(stub.received().get(0).headers())
                 .doesNotContainKey("authorization")
@@ -295,11 +298,11 @@ class ServiceProxyTest {
         try (ServerSocket socket = new ServerSocket(0)) {
             closedPort = socket.getLocalPort();
         }
-        var unreachable = new OnboardingServiceProxy("http://127.0.0.1:" + closedPort, RestClient.builder());
+        var unreachable = new OnboardingServiceProxy("http://127.0.0.1:" + closedPort, RestClient.builder(), JSON_MAPPER);
         Jwt jwt = jwt(Map.of("person_key", "person-1", "realm_access", Map.of("roles", List.of("admin"))));
 
         assertThatThrownBy(() -> unreachable.forward(
-                HttpMethod.POST, "/onboarding/auth/logout", request, "{}".getBytes(), jwt))
+                HttpMethod.POST, "/onboarding/auth/logout", request, null, "{}".getBytes(), jwt))
                 .isInstanceOf(ServiceRequestException.class);
     }
 
@@ -307,10 +310,10 @@ class ServiceProxyTest {
     void forward_jwtWithRoles_sendsSelectedUserRolesJoinedByComma() {
         String path = "/onboarding/auth/me";
         stub.on("GET", path, StubHttpServer.Response.of(200, "{}"));
-        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder());
+        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder(), JSON_MAPPER);
         Jwt jwt = jwt(Map.of("person_key", "person-1", "realm_access", Map.of("roles", List.of("organizer", "admin"))));
 
-        proxy.forward(HttpMethod.GET, path, request, null, jwt);
+        proxy.forward(HttpMethod.GET, path, request, null, null, jwt);
 
         assertThat(stub.received().get(0).headers()).containsEntry("selected-user-roles", "organizer,admin");
     }
@@ -320,10 +323,10 @@ class ServiceProxyTest {
         String path = "/onboarding/auth/me";
         stub.on("GET", path, StubHttpServer.Response.of(200, "{}"));
         request.addHeader("selected-user-roles", "admin");
-        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder());
+        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder(), JSON_MAPPER);
         Jwt jwt = jwt(Map.of("person_key", "person-1", "realm_access", Map.of("roles", List.of("buyer"))));
 
-        proxy.forward(HttpMethod.GET, path, request, null, jwt);
+        proxy.forward(HttpMethod.GET, path, request, null, null, jwt);
 
         assertThat(stub.received().get(0).headers()).containsEntry("selected-user-roles", "buyer");
     }
@@ -333,22 +336,24 @@ class ServiceProxyTest {
         String path = "/onboarding/auth/login";
         stub.on("POST", path, StubHttpServer.Response.of(200, "{}"));
         request.addHeader("selected-user-roles", "admin");
-        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder());
+        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder(), JSON_MAPPER);
 
-        proxy.forward(HttpMethod.POST, path, request, "{}".getBytes());
+        proxy.forward(HttpMethod.POST, path, request, null, "{}".getBytes(), null);
 
         assertThat(stub.received().get(0).headers()).doesNotContainKey("selected-user-roles");
     }
 
     @Test
-    void forwardJson_clientContentType_isReplacedByApplicationJson() {
+    void forward_contentType_replacesClientContentTypeWithApplicationJson() {
         String path = "/onboarding/auth/refresh";
         stub.on("POST", path, StubHttpServer.Response.of(200, "{\"access_token\":\"a\"}"));
         request.addHeader("Content-Type", "text/plain");
         request.addHeader("Accept-Language", "pt-BR");
-        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder());
+        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder(), JSON_MAPPER);
 
-        var response = proxy.forwardJson(HttpMethod.POST, path, request, "{\"refresh_token\":\"r\"}".getBytes());
+        var response = proxy.forward(
+                HttpMethod.POST, path, request, MediaType.APPLICATION_JSON,
+                "{\"refresh_token\":\"r\"}".getBytes(), null);
 
         assertThat(response.getStatusCode().value()).isEqualTo(200);
         assertThat(response.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_JSON);
@@ -360,12 +365,12 @@ class ServiceProxyTest {
     }
 
     @Test
-    void forwardJson_clientWithoutContentType_sendsApplicationJson() {
+    void forward_contentTypeWithoutClientContentType_sendsApplicationJson() {
         String path = "/onboarding/auth/refresh";
         stub.on("POST", path, StubHttpServer.Response.empty(204));
-        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder());
+        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder(), JSON_MAPPER);
 
-        var response = proxy.forwardJson(HttpMethod.POST, path, request, "{}".getBytes());
+        var response = proxy.forward(HttpMethod.POST, path, request, MediaType.APPLICATION_JSON, "{}".getBytes(), null);
 
         assertThat(response.getStatusCode().value()).isEqualTo(204);
         assertThat(response.getBody()).isNull();
@@ -373,44 +378,45 @@ class ServiceProxyTest {
     }
 
     @Test
-    void forwardJson_targetUnauthorized_returnsSameStatusAndBody() {
+    void forward_contentTypeAndTargetUnauthorized_returnsSameStatusAndBody() {
         String path = "/onboarding/auth/refresh";
         stub.on("POST", path, StubHttpServer.Response.of(401, "{\"code\":\"GEN00401\"}"));
-        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder());
+        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder(), JSON_MAPPER);
 
-        var response = proxy.forwardJson(HttpMethod.POST, path, request, "{}".getBytes());
+        var response = proxy.forward(HttpMethod.POST, path, request, MediaType.APPLICATION_JSON, "{}".getBytes(), null);
 
         assertThat(response.getStatusCode().value()).isEqualTo(401);
         assertThat(new String(response.getBody(), StandardCharsets.UTF_8)).isEqualTo("{\"code\":\"GEN00401\"}");
     }
 
     @Test
-    void forwardJson_connectionRefused_throwsServiceRequestException() throws IOException {
+    void forward_contentTypeAndConnectionRefused_throwsServiceRequestException() throws IOException {
         int closedPort;
         try (ServerSocket socket = new ServerSocket(0)) {
             closedPort = socket.getLocalPort();
         }
-        var unreachable = new OnboardingServiceProxy("http://127.0.0.1:" + closedPort, RestClient.builder());
+        var unreachable = new OnboardingServiceProxy("http://127.0.0.1:" + closedPort, RestClient.builder(), JSON_MAPPER);
 
-        assertThatThrownBy(() -> unreachable.forwardJson(
-                HttpMethod.POST, "/onboarding/auth/refresh", request, "{}".getBytes()))
+        assertThatThrownBy(() -> unreachable.forward(
+                HttpMethod.POST, "/onboarding/auth/refresh", request,
+                MediaType.APPLICATION_JSON, "{}".getBytes(), null))
                 .isInstanceOf(ServiceRequestException.class);
     }
 
     @Test
-    void forwardJson_jwt_sendsSelectedHeadersAndApplicationJson() {
+    void forward_contentTypeAndJwt_sendsSelectedHeadersAndApplicationJson() {
         String path = "/onboarding/auth/logout";
         stub.on("POST", path, StubHttpServer.Response.empty(204));
         request.addHeader("Content-Type", "text/plain");
         request.addHeader("selected-user-key", "forged-user");
         request.addHeader("Authorization", "Bearer abc");
-        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder());
+        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder(), JSON_MAPPER);
         Jwt jwt = jwt(Map.of(
                 "person_key", "person-1",
                 "legal_person_key", "legal-1",
                 "realm_access", Map.of("roles", List.of("organizer"))));
 
-        var response = proxy.forwardJson(HttpMethod.POST, path, request, "{}".getBytes(), jwt);
+        var response = proxy.forward(HttpMethod.POST, path, request, MediaType.APPLICATION_JSON, "{}".getBytes(), jwt);
 
         assertThat(response.getStatusCode().value()).isEqualTo(204);
         assertThat(stub.received().get(0).headers())
@@ -422,28 +428,28 @@ class ServiceProxyTest {
     }
 
     @Test
-    void forwardJson_jwtWithoutLegalPersonKey_doesNotSendSelectedAgentKey() {
+    void forward_contentTypeAndJwtWithoutLegalPersonKey_doesNotSendSelectedAgentKey() {
         String path = "/onboarding/auth/logout";
         stub.on("POST", path, StubHttpServer.Response.empty(204));
-        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder());
+        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder(), JSON_MAPPER);
         Jwt jwt = jwt(Map.of("person_key", "person-1", "realm_access", Map.of("roles", List.of("admin"))));
 
-        proxy.forwardJson(HttpMethod.POST, path, request, "{}".getBytes(), jwt);
+        proxy.forward(HttpMethod.POST, path, request, MediaType.APPLICATION_JSON, "{}".getBytes(), jwt);
 
         assertThat(stub.received().get(0).headers()).doesNotContainKey("selected-agent-key");
     }
 
     @Test
-    void forwardJson_jwtAndConnectionRefused_throwsServiceRequestException() throws IOException {
+    void forward_contentTypeAndJwtAndConnectionRefused_throwsServiceRequestException() throws IOException {
         int closedPort;
         try (ServerSocket socket = new ServerSocket(0)) {
             closedPort = socket.getLocalPort();
         }
-        var unreachable = new OnboardingServiceProxy("http://127.0.0.1:" + closedPort, RestClient.builder());
+        var unreachable = new OnboardingServiceProxy("http://127.0.0.1:" + closedPort, RestClient.builder(), JSON_MAPPER);
         Jwt jwt = jwt(Map.of("person_key", "person-1", "realm_access", Map.of("roles", List.of("admin"))));
 
-        assertThatThrownBy(() -> unreachable.forwardJson(
-                HttpMethod.POST, "/onboarding/auth/logout", request, "{}".getBytes(), jwt))
+        assertThatThrownBy(() -> unreachable.forward(
+                HttpMethod.POST, "/onboarding/auth/logout", request, MediaType.APPLICATION_JSON, "{}".getBytes(), jwt))
                 .isInstanceOf(ServiceRequestException.class);
     }
 }
