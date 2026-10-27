@@ -1,6 +1,5 @@
 package com.pulsepass.backofficegateway.api.configurations;
 
-import com.pulsepass.backofficegateway.api.sessions.SessionCookies;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
@@ -20,7 +19,7 @@ public class CookieBearerTokenResolver implements BearerTokenResolver {
         if (this.publicRoutes.matches(request)) {
             return null;
         }
-        Cookie cookie = WebUtils.getCookie(request, SessionCookies.ACCESS_TOKEN);
+        Cookie cookie = WebUtils.getCookie(request, "pulsepass_access_token");
         if (cookie == null) {
             return null;
         }

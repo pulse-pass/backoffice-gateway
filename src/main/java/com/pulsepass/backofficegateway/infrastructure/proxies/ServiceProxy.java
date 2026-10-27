@@ -40,61 +40,39 @@ public abstract class ServiceProxy {
         return URI.create(this.baseUrl + path + "?" + query);
     }
 
-    private void copyHeaders(HttpServletRequest request, HttpHeaders headers) {
+    @SuppressWarnings("unchecked")
+    private void copyHeaders(HttpServletRequest request, MediaType contentType, Jwt jwt, HttpHeaders headers) {
         for (String name : FORWARDED_HEADERS) {
             String value = request.getHeader(name);
             if (value != null) {
                 headers.set(name, value);
             }
         }
-    }
-
-    public ResponseEntity<byte[]> forward(HttpMethod method, String path, HttpServletRequest request, byte[] body) {
-        RestClient.RequestBodySpec spec = this.restClient.method(method)
-                .uri(targetUri(path, request.getQueryString()))
-                .headers(headers -> copyHeaders(request, headers));
-        if (body != null) {
-            spec.body(body);
+        if (contentType != null) {
+            headers.setContentType(contentType);
         }
-
-        try {
-            return spec.exchange((forwardedRequest, response) -> {
-                byte[] responseBody = response.getBody().readAllBytes();
-                return ResponseEntity
-                        .status(response.getStatusCode())
-                        .contentType(response.getHeaders().getContentType())
-                        .body(responseBody.length == 0 ? null : responseBody);
-            });
-        } catch (RestClientException ex) {
-            logger.error(
-                    "ServiceProxy.forward - Request failed {}",
-                    Map.of("service", this.serviceName, "method", method.name(), "path", path),
-                    ex
-            );
-            throw new ServiceRequestException(ex);
+        if (jwt != null) {
+            headers.set("selected-user-key", jwt.getClaimAsString("person_key"));
+            Map<String, Object> realmAccess = jwt.getClaimAsMap("realm_access");
+            headers.set("selected-user-roles", String.join(",", (List<String>) realmAccess.get("roles")));
+            String legalPersonKey = jwt.getClaimAsString("legal_person_key");
+            if (legalPersonKey != null) {
+                headers.set("selected-agent-key", legalPersonKey);
+            }
         }
     }
 
-    @SuppressWarnings("unchecked")
     public ResponseEntity<byte[]> forward(
             HttpMethod method,
             String path,
             HttpServletRequest request,
+            MediaType contentType,
             byte[] body,
             Jwt jwt
     ) {
         RestClient.RequestBodySpec spec = this.restClient.method(method)
-                .uri(targetUri(path, request.getQueryString()))
-                .headers(headers -> {
-                    copyHeaders(request, headers);
-                    headers.set("selected-user-key", jwt.getClaimAsString("person_key"));
-                    Map<String, Object> realmAccess = jwt.getClaimAsMap("realm_access");
-                    headers.set("selected-user-roles", String.join(",", (List<String>) realmAccess.get("roles")));
-                    String legalPersonKey = jwt.getClaimAsString("legal_person_key");
-                    if (legalPersonKey != null) {
-                        headers.set("selected-agent-key", legalPersonKey);
-                    }
-                });
+                .uri(this.targetUri(path, request.getQueryString()))
+                .headers(headers -> this.copyHeaders(request, contentType, jwt, headers));
         if (body != null) {
             spec.body(body);
         }
@@ -110,84 +88,8 @@ public abstract class ServiceProxy {
         } catch (RestClientException ex) {
             logger.error(
                     "ServiceProxy.forward - Request failed {}",
-                    Map.of("service", this.serviceName, "method", method.name(), "path", path),
-                    ex
-            );
-            throw new ServiceRequestException(ex);
-        }
-    }
-
-    public ResponseEntity<byte[]> forwardJson(
-            HttpMethod method,
-            String path,
-            HttpServletRequest request,
-            byte[] body
-    ) {
-        RestClient.RequestBodySpec spec = this.restClient.method(method)
-                .uri(targetUri(path, request.getQueryString()))
-                .headers(headers -> {
-                    copyHeaders(request, headers);
-                    headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
-                });
-        if (body != null) {
-            spec.body(body);
-        }
-
-        try {
-            return spec.exchange((forwardedRequest, response) -> {
-                byte[] responseBody = response.getBody().readAllBytes();
-                return ResponseEntity
-                        .status(response.getStatusCode())
-                        .contentType(response.getHeaders().getContentType())
-                        .body(responseBody.length == 0 ? null : responseBody);
-            });
-        } catch (RestClientException ex) {
-            logger.error(
-                    "ServiceProxy.forwardJson - Request failed {}",
-                    Map.of("service", this.serviceName, "method", method.name(), "path", path),
-                    ex
-            );
-            throw new ServiceRequestException(ex);
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    public ResponseEntity<byte[]> forwardJson(
-            HttpMethod method,
-            String path,
-            HttpServletRequest request,
-            byte[] body,
-            Jwt jwt
-    ) {
-        RestClient.RequestBodySpec spec = this.restClient.method(method)
-                .uri(targetUri(path, request.getQueryString()))
-                .headers(headers -> {
-                    copyHeaders(request, headers);
-                    headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
-                    headers.set("selected-user-key", jwt.getClaimAsString("person_key"));
-                    Map<String, Object> realmAccess = jwt.getClaimAsMap("realm_access");
-                    headers.set("selected-user-roles", String.join(",", (List<String>) realmAccess.get("roles")));
-                    String legalPersonKey = jwt.getClaimAsString("legal_person_key");
-                    if (legalPersonKey != null) {
-                        headers.set("selected-agent-key", legalPersonKey);
-                    }
-                });
-        if (body != null) {
-            spec.body(body);
-        }
-
-        try {
-            return spec.exchange((forwardedRequest, response) -> {
-                byte[] responseBody = response.getBody().readAllBytes();
-                return ResponseEntity
-                        .status(response.getStatusCode())
-                        .contentType(response.getHeaders().getContentType())
-                        .body(responseBody.length == 0 ? null : responseBody);
-            });
-        } catch (RestClientException ex) {
-            logger.error(
-                    "ServiceProxy.forwardJson - Request failed {}",
-                    Map.of("service", this.serviceName, "method", method.name(), "path", path),
+                    Map.of("service", this.serviceName, "method", method.name(),
+                            "path", path),
                     ex
             );
             throw new ServiceRequestException(ex);

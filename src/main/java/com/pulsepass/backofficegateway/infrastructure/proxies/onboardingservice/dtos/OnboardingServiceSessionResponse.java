@@ -1,6 +1,6 @@
-package com.pulsepass.backofficegateway.api.sessions;
+package com.pulsepass.backofficegateway.infrastructure.proxies.onboardingservice.dtos;
 
-public record OnboardingSessionResponse(
+public record OnboardingServiceSessionResponse(
         String accessToken,
         long expiresIn,
         String refreshToken,

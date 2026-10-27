@@ -15,7 +15,6 @@ import com.pulsepass.backofficegateway.api.configurations.SecurityConfiguration;
 import com.pulsepass.backofficegateway.api.controllers.OnboardingController;
 import com.pulsepass.backofficegateway.api.exceptions.GlobalExceptionHandler;
 import com.pulsepass.backofficegateway.api.exceptions.SecurityErrorHandler;
-import com.pulsepass.backofficegateway.api.sessions.SessionCookies;
 import com.pulsepass.backofficegateway.common.TokenTools;
 import com.pulsepass.backofficegateway.infrastructure.proxies.onboardingservice.OnboardingServiceProxy;
 import jakarta.servlet.http.Cookie;
@@ -63,16 +62,14 @@ class SecurityConfigurationTest {
 
     @BeforeEach
     void setUp() {
-        byte[] session = ("{\"access_token\":\"a\",\"expires_in\":300,\"refresh_token\":\"r\","
-                + "\"refresh_expires_in\":1800,\"token_type\":\"Bearer\"}").getBytes();
-        when(onboardingServiceProxy.forward(any(), any(), any(), any()))
-                .thenReturn(ResponseEntity.status(200).body(session));
-        when(onboardingServiceProxy.forward(any(), any(), any(), any(), any()))
+        when(onboardingServiceProxy.forward(any(), any(), any(), any(), any(), any()))
                 .thenReturn(ResponseEntity.status(200).body("{}".getBytes()));
-        when(onboardingServiceProxy.forwardJson(any(), any(), any(), any()))
-                .thenReturn(ResponseEntity.status(200).body(session));
-        when(onboardingServiceProxy.forwardJson(any(), any(), any(), any(), any()))
-                .thenReturn(ResponseEntity.status(204).build());
+        when(onboardingServiceProxy.createSession(any(), any()))
+                .thenReturn(ResponseEntity.noContent().build());
+        when(onboardingServiceProxy.refreshSession(any(), any()))
+                .thenReturn(ResponseEntity.noContent().build());
+        when(onboardingServiceProxy.deleteSession(any(), any(), any()))
+                .thenReturn(ResponseEntity.noContent().build());
     }
 
     private String token(String issuer, Instant expiresAt, String role) {
@@ -96,11 +93,11 @@ class SecurityConfigurationTest {
     }
 
     private Cookie accessCookie(String token) {
-        return new Cookie(SessionCookies.ACCESS_TOKEN, token);
+        return new Cookie("pulsepass_access_token", token);
     }
 
     private Cookie refreshCookie() {
-        return new Cookie(SessionCookies.REFRESH_TOKEN, "refresh-secret");
+        return new Cookie("pulsepass_refresh_token", "refresh-secret");
     }
 
     private String tampered(String token) {

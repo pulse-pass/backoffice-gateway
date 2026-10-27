@@ -1,6 +1,7 @@
 package com.pulsepass.backofficegateway.unit.api.controllers;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
@@ -9,7 +10,6 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -25,6 +25,7 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -81,8 +82,7 @@ class OnboardingControllerTest {
 
     @Test
     void createLegalPerson_targetResponds_returnsSameStatusBodyAndContentType() throws Exception {
-        when(onboardingServiceProxy.forward(
-                eq(HttpMethod.POST), eq("/onboarding/legal_persons"), any(HttpServletRequest.class), any()))
+        when(onboardingServiceProxy.forward(any(), any(), any(), any(), any(), any()))
                 .thenReturn(ResponseEntity.status(409)
                         .contentType(MediaType.APPLICATION_JSON)
                         .body("{\"code\":\"ONB00001\"}".getBytes()));
@@ -98,7 +98,7 @@ class OnboardingControllerTest {
 
     @Test
     void createLegalPerson_body_forwardsRawBytesToOnboardingPath() throws Exception {
-        when(onboardingServiceProxy.forward(any(), any(), any(), any()))
+        when(onboardingServiceProxy.forward(any(), any(), any(), any(), any(), any()))
                 .thenReturn(ResponseEntity.status(201).body(new byte[0]));
 
         mockMvc.perform(post("/legal_persons")
@@ -110,24 +110,26 @@ class OnboardingControllerTest {
         verify(onboardingServiceProxy).forward(
                 eq(HttpMethod.POST),
                 eq("/onboarding/legal_persons"),
-                any(HttpServletRequest.class),
-                eq("{\"a\":1}".getBytes()));
+                any(),
+                isNull(),
+                argThat(body -> Arrays.equals(body, "{\"a\":1}".getBytes())),
+                isNull());
     }
 
     @Test
     void createLegalPerson_noBody_forwardsNullBody() throws Exception {
-        when(onboardingServiceProxy.forward(any(), any(), any(), any()))
+        when(onboardingServiceProxy.forward(any(), any(), any(), any(), any(), any()))
                 .thenReturn(ResponseEntity.status(400).body(new byte[0]));
 
         mockMvc.perform(post("/legal_persons").with(this.csrfToken())).andExpect(status().isBadRequest());
 
         verify(onboardingServiceProxy).forward(
-                eq(HttpMethod.POST), eq("/onboarding/legal_persons"), any(HttpServletRequest.class), isNull());
+                eq(HttpMethod.POST), eq("/onboarding/legal_persons"), any(), isNull(), isNull(), isNull());
     }
 
     @Test
     void createLegalPerson_proxyFails_returns500Gen00500() throws Exception {
-        when(onboardingServiceProxy.forward(any(), any(), any(), any()))
+        when(onboardingServiceProxy.forward(any(), any(), any(), any(), any(), any()))
                 .thenThrow(new ServiceRequestException(new IllegalStateException("down")));
 
         mockMvc.perform(post("/legal_persons")
@@ -153,53 +155,18 @@ class OnboardingControllerTest {
                 .andExpect(jsonPath("$.code").value("GEN00404"));
     }
 
-    private static final String SESSION_JSON = "{\"access_token\":\"access-1\",\"expires_in\":300,"
-            + "\"refresh_token\":\"refresh-1\",\"refresh_expires_in\":1800,\"token_type\":\"Bearer\"}";
-
-    private static final String REFRESH_BODY = "{\"refresh_token\":\"refresh-secret\"}";
-
     @Test
-    void createSession_targetOk_returns204WithBothCookiesAndNoBody() throws Exception {
-        when(onboardingServiceProxy.forward(any(), any(), any(), any()))
-                .thenReturn(ResponseEntity.status(200)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .body(SESSION_JSON.getBytes()));
+    void createSession_body_delegatesToProxyAndReturnsItsResponse() throws Exception {
+        when(onboardingServiceProxy.createSession(any(HttpServletRequest.class), any()))
+                .thenReturn(ResponseEntity.noContent().build());
 
         mockMvc.perform(post("/auth/login")
                 .with(this.csrfToken())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"a\":1}"))
-                .andExpect(status().isNoContent())
-                .andExpect(content().string(""))
-                .andExpect(cookie().value("pulsepass_access_token", "access-1"))
-                .andExpect(cookie().maxAge("pulsepass_access_token", 300))
-                .andExpect(cookie().path("pulsepass_access_token", "/"))
-                .andExpect(cookie().value("pulsepass_refresh_token", "refresh-1"))
-                .andExpect(cookie().maxAge("pulsepass_refresh_token", 1800))
-                .andExpect(cookie().path("pulsepass_refresh_token", "/auth"));
+                .andExpect(status().isNoContent());
 
-        verify(onboardingServiceProxy).forward(
-                eq(HttpMethod.POST),
-                eq("/onboarding/auth/login"),
-                any(HttpServletRequest.class),
-                eq("{\"a\":1}".getBytes()));
-    }
-
-    @Test
-    void createSession_targetUnauthorized_returnsRawResponseWithoutCookies() throws Exception {
-        when(onboardingServiceProxy.forward(any(), any(), any(), any()))
-                .thenReturn(ResponseEntity.status(401)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .body("{\"code\":\"GEN00401\"}".getBytes()));
-
-        mockMvc.perform(post("/auth/login")
-                .with(this.csrfToken())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{}"))
-                .andExpect(status().isUnauthorized())
-                .andExpect(header().string("Content-Type", "application/json"))
-                .andExpect(header().doesNotExist("Set-Cookie"))
-                .andExpect(content().string("{\"code\":\"GEN00401\"}"));
+        verify(onboardingServiceProxy).createSession(any(HttpServletRequest.class), eq("{\"a\":1}".getBytes()));
     }
 
     @Test
@@ -208,12 +175,12 @@ class OnboardingControllerTest {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("GEN00403"));
 
-        verify(onboardingServiceProxy, never()).forward(any(), any(), any(), any());
+        verify(onboardingServiceProxy, never()).createSession(any(), any());
     }
 
     @Test
     void createSession_proxyFails_returns500Gen00500() throws Exception {
-        when(onboardingServiceProxy.forward(any(), any(), any(), any()))
+        when(onboardingServiceProxy.createSession(any(), any()))
                 .thenThrow(new ServiceRequestException(new IllegalStateException("down")));
 
         mockMvc.perform(post("/auth/login")
@@ -225,26 +192,15 @@ class OnboardingControllerTest {
     }
 
     @Test
-    void refreshSession_cookieAndTargetOk_sendsRefreshBodyAndRewritesCookies() throws Exception {
-        when(onboardingServiceProxy.forwardJson(any(), any(), any(), any()))
-                .thenReturn(ResponseEntity.status(200)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .body(SESSION_JSON.getBytes()));
+    void refreshSession_refreshCookie_delegatesToProxyWithCookieValue() throws Exception {
+        when(onboardingServiceProxy.refreshSession(any(HttpServletRequest.class), any()))
+                .thenReturn(ResponseEntity.noContent().build());
 
         mockMvc.perform(post("/auth/refresh").with(this.csrfToken())
-                        .cookie(new Cookie("pulsepass_refresh_token", "refresh-secret"))
-                        .contentType(MediaType.TEXT_PLAIN)
-                        .content("ignored"))
-                .andExpect(status().isNoContent())
-                .andExpect(content().string(""))
-                .andExpect(cookie().value("pulsepass_access_token", "access-1"))
-                .andExpect(cookie().value("pulsepass_refresh_token", "refresh-1"));
+                        .cookie(new Cookie("pulsepass_refresh_token", "refresh-secret")))
+                .andExpect(status().isNoContent());
 
-        verify(onboardingServiceProxy).forwardJson(
-                eq(HttpMethod.POST),
-                eq("/onboarding/auth/refresh"),
-                any(HttpServletRequest.class),
-                eq(REFRESH_BODY.getBytes()));
+        verify(onboardingServiceProxy).refreshSession(any(HttpServletRequest.class), eq("refresh-secret"));
     }
 
     @Test
@@ -253,75 +209,32 @@ class OnboardingControllerTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("GEN00401"));
 
-        verify(onboardingServiceProxy, never()).forwardJson(any(), any(), any(), any());
+        verify(onboardingServiceProxy, never()).refreshSession(any(), any());
     }
 
     @Test
-    void refreshSession_targetUnauthorized_clearsCookiesAndReturnsRawResponse() throws Exception {
-        when(onboardingServiceProxy.forwardJson(any(), any(), any(), any()))
-                .thenReturn(ResponseEntity.status(401)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .body("{\"code\":\"GEN00401\"}".getBytes()));
-
-        mockMvc.perform(post("/auth/refresh").with(this.csrfToken())
-                        .cookie(new Cookie("pulsepass_refresh_token", "refresh-secret")))
-                .andExpect(status().isUnauthorized())
-                .andExpect(header().string("Content-Type", "application/json"))
-                .andExpect(content().string("{\"code\":\"GEN00401\"}"))
-                .andExpect(cookie().maxAge("pulsepass_access_token", 0))
-                .andExpect(cookie().maxAge("pulsepass_refresh_token", 0));
-    }
-
-    @Test
-    void refreshSession_targetServerError_returnsRawResponseWithoutCookies() throws Exception {
-        when(onboardingServiceProxy.forwardJson(any(), any(), any(), any()))
-                .thenReturn(ResponseEntity.status(500)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .body("{\"code\":\"GEN00500\"}".getBytes()));
-
-        mockMvc.perform(post("/auth/refresh").with(this.csrfToken())
-                        .cookie(new Cookie("pulsepass_refresh_token", "refresh-secret")))
-                .andExpect(status().isInternalServerError())
-                .andExpect(header().doesNotExist("Set-Cookie"))
-                .andExpect(content().string("{\"code\":\"GEN00500\"}"));
-    }
-
-    @Test
-    void deleteSession_authenticated_sendsRefreshBodyAndJwtAndClearsCookies() throws Exception {
-        when(onboardingServiceProxy.forwardJson(any(), any(), any(), any(), any(Jwt.class)))
-                .thenReturn(ResponseEntity.status(204).build());
+    void deleteSession_authenticated_delegatesToProxyWithCookieAndJwt() throws Exception {
+        when(onboardingServiceProxy.deleteSession(any(HttpServletRequest.class), any(), any(Jwt.class)))
+                .thenReturn(ResponseEntity.noContent().build());
 
         mockMvc.perform(post("/auth/logout").with(this.csrfToken())
                         .cookie(this.accessCookie("organizer"))
                         .cookie(new Cookie("pulsepass_refresh_token", "refresh-secret")))
-                .andExpect(status().isNoContent())
-                .andExpect(cookie().maxAge("pulsepass_access_token", 0))
-                .andExpect(cookie().value("pulsepass_access_token", ""))
-                .andExpect(cookie().maxAge("pulsepass_refresh_token", 0))
-                .andExpect(cookie().value("pulsepass_refresh_token", ""));
+                .andExpect(status().isNoContent());
 
-        verify(onboardingServiceProxy).forwardJson(
-                eq(HttpMethod.POST),
-                eq("/onboarding/auth/logout"),
-                any(HttpServletRequest.class),
-                eq(REFRESH_BODY.getBytes()),
-                any(Jwt.class));
+        verify(onboardingServiceProxy).deleteSession(
+                any(HttpServletRequest.class), eq("refresh-secret"), any(Jwt.class));
     }
 
     @Test
-    void deleteSession_targetUnauthorized_returnsRawResponseAndClearsCookies() throws Exception {
-        when(onboardingServiceProxy.forwardJson(any(), any(), any(), any(), any(Jwt.class)))
-                .thenReturn(ResponseEntity.status(401)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .body("{\"code\":\"GEN00401\"}".getBytes()));
+    void deleteSession_buyerRole_isAllowed() throws Exception {
+        when(onboardingServiceProxy.deleteSession(any(), any(), any(Jwt.class)))
+                .thenReturn(ResponseEntity.noContent().build());
 
         mockMvc.perform(post("/auth/logout").with(this.csrfToken())
                         .cookie(this.accessCookie("buyer"))
                         .cookie(new Cookie("pulsepass_refresh_token", "refresh-secret")))
-                .andExpect(status().isUnauthorized())
-                .andExpect(content().string("{\"code\":\"GEN00401\"}"))
-                .andExpect(cookie().maxAge("pulsepass_access_token", 0))
-                .andExpect(cookie().maxAge("pulsepass_refresh_token", 0));
+                .andExpect(status().isNoContent());
     }
 
     @Test
@@ -331,7 +244,7 @@ class OnboardingControllerTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("GEN00401"));
 
-        verify(onboardingServiceProxy, never()).forwardJson(any(), any(), any(), any(), any());
+        verify(onboardingServiceProxy, never()).deleteSession(any(), any(), any());
     }
 
     @Test
@@ -341,23 +254,12 @@ class OnboardingControllerTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("GEN00401"));
 
-        verify(onboardingServiceProxy, never()).forwardJson(any(), any(), any(), any(), any());
-    }
-
-    @Test
-    void deleteSession_buyerRole_isAllowed() throws Exception {
-        when(onboardingServiceProxy.forwardJson(any(), any(), any(), any(), any(Jwt.class)))
-                .thenReturn(ResponseEntity.status(204).build());
-
-        mockMvc.perform(post("/auth/logout").with(this.csrfToken())
-                        .cookie(this.accessCookie("buyer"))
-                        .cookie(new Cookie("pulsepass_refresh_token", "refresh-secret")))
-                .andExpect(status().isNoContent());
+        verify(onboardingServiceProxy, never()).deleteSession(any(), any(), any());
     }
 
     @Test
     void deleteSession_proxyFails_returns500Gen00500() throws Exception {
-        when(onboardingServiceProxy.forwardJson(any(), any(), any(), any(), any(Jwt.class)))
+        when(onboardingServiceProxy.deleteSession(any(), any(), any(Jwt.class)))
                 .thenThrow(new ServiceRequestException(new IllegalStateException("down")));
 
         mockMvc.perform(post("/auth/logout").with(this.csrfToken())
@@ -369,7 +271,7 @@ class OnboardingControllerTest {
 
     @Test
     void readMe_authenticated_forwardsGetWithJwtAndReturnsTargetResponse() throws Exception {
-        when(onboardingServiceProxy.forward(any(), any(), any(), any(), any(Jwt.class)))
+        when(onboardingServiceProxy.forward(any(), any(), any(), any(), any(), any()))
                 .thenReturn(ResponseEntity.status(200)
                         .contentType(MediaType.APPLICATION_JSON)
                         .body("{\"person_key\":\"p1\"}".getBytes()));
@@ -380,11 +282,7 @@ class OnboardingControllerTest {
                 .andExpect(content().string("{\"person_key\":\"p1\"}"));
 
         verify(onboardingServiceProxy).forward(
-                eq(HttpMethod.GET),
-                eq("/onboarding/auth/me"),
-                any(HttpServletRequest.class),
-                isNull(),
-                any(Jwt.class));
+                eq(HttpMethod.GET), eq("/onboarding/auth/me"), any(), isNull(), isNull(), any(Jwt.class));
     }
 
     @Test
@@ -393,6 +291,6 @@ class OnboardingControllerTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("GEN00401"));
 
-        verify(onboardingServiceProxy, never()).forward(any(), any(), any(), any(), any());
+        verify(onboardingServiceProxy, never()).forward(any(), any(), any(), any(), any(), any());
     }
 }
