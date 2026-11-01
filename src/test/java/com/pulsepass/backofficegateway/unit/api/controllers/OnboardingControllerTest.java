@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -142,8 +143,8 @@ class OnboardingControllerTest {
     }
 
     @Test
-    void createLegalPerson_getMethod_returns405Gen00405() throws Exception {
-        mockMvc.perform(get("/legal_persons").cookie(this.accessCookie("organizer")))
+    void createLegalPerson_putMethod_returns405Gen00405() throws Exception {
+        mockMvc.perform(put("/legal_persons").with(this.csrfToken()).cookie(this.accessCookie("organizer")))
                 .andExpect(status().isMethodNotAllowed())
                 .andExpect(jsonPath("$.code").value("GEN00405"));
     }
@@ -292,5 +293,49 @@ class OnboardingControllerTest {
                 .andExpect(jsonPath("$.code").value("GEN00401"));
 
         verify(onboardingServiceProxy, never()).forward(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void readLegalPerson_organizer_forwardsGetWithJwtAndReturnsTargetResponse() throws Exception {
+        when(onboardingServiceProxy.forward(any(), any(), any(), any(), any(), any()))
+                .thenReturn(ResponseEntity.status(200)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("{\"data\":[]}".getBytes()));
+
+        mockMvc.perform(get("/legal_persons/lp-1").cookie(this.accessCookie("organizer")))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "application/json"))
+                .andExpect(content().string("{\"data\":[]}"));
+
+        verify(onboardingServiceProxy).forward(
+                eq(HttpMethod.GET), eq("/onboarding/legal_persons/lp-1"), any(), isNull(), isNull(), any(Jwt.class));
+    }
+
+    @Test
+    void readLegalPerson_noToken_returns401WithoutCallingProxy() throws Exception {
+        mockMvc.perform(get("/legal_persons/lp-1"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("GEN00401"));
+
+        verify(onboardingServiceProxy, never()).forward(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void readLegalPerson_adminRole_returns403WithoutCallingProxy() throws Exception {
+        mockMvc.perform(get("/legal_persons/lp-1").cookie(this.accessCookie("admin")))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("GEN00403"));
+
+        verify(onboardingServiceProxy, never()).forward(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void readLegalPerson_proxyFails_returns500Gen00500() throws Exception {
+        when(onboardingServiceProxy.forward(any(), any(), any(), any(), any(), any()))
+                .thenThrow(new ServiceRequestException(new IllegalStateException("down")));
+
+        mockMvc.perform(get("/legal_persons/lp-1").cookie(this.accessCookie("organizer")))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.code").value("GEN00500"));
     }
 }

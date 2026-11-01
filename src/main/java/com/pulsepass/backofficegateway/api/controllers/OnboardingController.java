@@ -8,6 +8,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -28,6 +29,16 @@ public class OnboardingController {
     ) {
         return this.onboardingServiceProxy.forward(
                 HttpMethod.POST, "/onboarding/legal_persons", request, null, body, null);
+    }
+
+    @GetMapping("/legal_persons/{legalPersonKey}")
+    public ResponseEntity<byte[]> readLegalPerson(
+            HttpServletRequest request,
+            @PathVariable String legalPersonKey,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        return this.onboardingServiceProxy.forward(
+                HttpMethod.GET, "/onboarding/legal_persons/" + legalPersonKey, request, null, null, jwt);
     }
 
     @PostMapping("/auth/login")

@@ -97,6 +97,8 @@ public class SecurityConfiguration {
                         .requestMatchers(publicRoutes).permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/logout").authenticated()
                         .requestMatchers(HttpMethod.GET, "/auth/me").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/organizations").hasRole("ORGANIZER")
+                        .requestMatchers(HttpMethod.GET, "/legal_persons/*").hasRole("ORGANIZER")
                         .anyRequest().hasAnyRole("ORGANIZER", "ADMIN"))
                 .exceptionHandling(handling -> handling
                         .authenticationEntryPoint(this.securityErrorHandler)

@@ -26,6 +26,7 @@ services:
     env_file: .env
     environment:
       ONBOARDING_SERVICE_URL: ${ONBOARDING_SERVICE_URL:-http://backoffice-gateway-test-mockserver:1080}
+      ORGANIZATION_SERVICE_URL: ${ORGANIZATION_SERVICE_URL:-http://backoffice-gateway-test-mockserver:1080}
     ports:
       - "${PUBLISHED_API_PORT:-8090}:8080"
     depends_on:

@@ -1,0 +1,9 @@
+{
+  "httpRequest": {
+    "method": "GET",
+    "path": "/organization/organizations"
+  },
+  "httpError": {
+    "dropConnection": true
+  }
+}
