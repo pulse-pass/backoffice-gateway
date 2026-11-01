@@ -13,10 +13,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.pulsepass.backofficegateway.api.configurations.CorsConfiguration;
 import com.pulsepass.backofficegateway.api.configurations.SecurityConfiguration;
 import com.pulsepass.backofficegateway.api.controllers.OnboardingController;
+import com.pulsepass.backofficegateway.api.controllers.OrganizationController;
 import com.pulsepass.backofficegateway.api.exceptions.GlobalExceptionHandler;
 import com.pulsepass.backofficegateway.api.exceptions.SecurityErrorHandler;
 import com.pulsepass.backofficegateway.common.TokenTools;
 import com.pulsepass.backofficegateway.infrastructure.proxies.onboardingservice.OnboardingServiceProxy;
+import com.pulsepass.backofficegateway.infrastructure.proxies.organizationservice.OrganizationServiceProxy;
 import jakarta.servlet.http.Cookie;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -36,7 +38,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
-@WebMvcTest(OnboardingController.class)
+@WebMvcTest({OnboardingController.class, OrganizationController.class})
 @Import({SecurityConfiguration.class, SecurityErrorHandler.class, GlobalExceptionHandler.class,
         CorsConfiguration.class})
 @TestPropertySource(
@@ -60,9 +62,14 @@ class SecurityConfigurationTest {
     @MockitoBean
     private OnboardingServiceProxy onboardingServiceProxy;
 
+    @MockitoBean
+    private OrganizationServiceProxy organizationServiceProxy;
+
     @BeforeEach
     void setUp() {
         when(onboardingServiceProxy.forward(any(), any(), any(), any(), any(), any()))
+                .thenReturn(ResponseEntity.status(200).body("{}".getBytes()));
+        when(organizationServiceProxy.forward(any(), any(), any(), any(), any(), any()))
                 .thenReturn(ResponseEntity.status(200).body("{}".getBytes()));
         when(onboardingServiceProxy.createSession(any(), any()))
                 .thenReturn(ResponseEntity.noContent().build());
@@ -494,5 +501,60 @@ class SecurityConfigurationTest {
         mockMvc.perform(get("/unknown").cookie(this.accessCookie(token)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("GEN00404"));
+    }
+
+    @Test
+    void filterChain_organizationsWithoutCookie_returns401Gen00401() throws Exception {
+        mockMvc.perform(get("/organizations"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("GEN00401"));
+    }
+
+    @Test
+    void filterChain_organizationsWithOrganizerCookie_passes() throws Exception {
+        String token = token(ISSUER, Instant.now().plusSeconds(300), "organizer");
+
+        mockMvc.perform(get("/organizations").cookie(this.accessCookie(token))).andExpect(status().isOk());
+    }
+
+    @Test
+    void filterChain_organizationsWithAdminCookie_returns403Gen00403() throws Exception {
+        String token = token(ISSUER, Instant.now().plusSeconds(300), "admin");
+
+        mockMvc.perform(get("/organizations").cookie(this.accessCookie(token)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("GEN00403"));
+    }
+
+    @Test
+    void filterChain_organizationsWithBuyerCookie_returns403Gen00403() throws Exception {
+        String token = token(ISSUER, Instant.now().plusSeconds(300), "buyer");
+
+        mockMvc.perform(get("/organizations").cookie(this.accessCookie(token)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("GEN00403"));
+    }
+
+    @Test
+    void filterChain_legalPersonReadWithoutCookie_returns401Gen00401() throws Exception {
+        mockMvc.perform(get("/legal_persons/lp-1"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("GEN00401"));
+    }
+
+    @Test
+    void filterChain_legalPersonReadWithOrganizerCookie_passes() throws Exception {
+        String token = token(ISSUER, Instant.now().plusSeconds(300), "organizer");
+
+        mockMvc.perform(get("/legal_persons/lp-1").cookie(this.accessCookie(token))).andExpect(status().isOk());
+    }
+
+    @Test
+    void filterChain_legalPersonReadWithAdminCookie_returns403Gen00403() throws Exception {
+        String token = token(ISSUER, Instant.now().plusSeconds(300), "admin");
+
+        mockMvc.perform(get("/legal_persons/lp-1").cookie(this.accessCookie(token)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("GEN00403"));
     }
 }

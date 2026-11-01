@@ -2,12 +2,12 @@ package com.pulsepass.backofficegateway.unit.infrastructure.proxies.onboardingse
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.pulsepass.backofficegateway.infrastructure.proxies.onboardingservice.dtos.OnboardingServiceRefreshTokenRequest;
+import com.pulsepass.backofficegateway.infrastructure.proxies.onboardingservice.dtos.OnboardingServiceRefreshSessionRequest;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.PropertyNamingStrategies;
 import tools.jackson.databind.json.JsonMapper;
 
-class OnboardingServiceRefreshTokenRequestTest {
+class OnboardingServiceRefreshSessionRequestTest {
 
     @Test
     void writeValueAsString_refreshToken_serializesSnakeCaseField() {
@@ -15,7 +15,7 @@ class OnboardingServiceRefreshTokenRequestTest {
                 .propertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
                 .build();
 
-        String json = mapper.writeValueAsString(new OnboardingServiceRefreshTokenRequest("refresh-1"));
+        String json = mapper.writeValueAsString(new OnboardingServiceRefreshSessionRequest("refresh-1"));
 
         assertThat(json).isEqualTo("{\"refresh_token\":\"refresh-1\"}");
     }

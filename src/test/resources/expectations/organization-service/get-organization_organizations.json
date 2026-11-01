@@ -1,0 +1,31 @@
+{
+  "httpRequest": {
+    "method": "GET",
+    "path": "/organization/organizations"
+  },
+  "httpResponse": {
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": ["application/json"]
+    },
+    "body": {
+      "data": [
+        {
+          "organization_key": "organization-from-target",
+          "legal_person_key": "legal-person-from-target",
+          "name": "Pulse Eventos Ltda",
+          "document_number": "34512889000107",
+          "status": "REJECTED",
+          "rejection_reason": "INACTIVE_DOCUMENT",
+          "rejection_reason_description": "CNPJ inapto.",
+          "created_at": "2026-10-09T14:12:00",
+          "updated_at": "2026-10-10T09:00:00"
+        }
+      ],
+      "pagination": {
+        "page": 1,
+        "page_size": 30
+      }
+    }
+  }
+}

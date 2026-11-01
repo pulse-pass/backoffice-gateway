@@ -1,0 +1,18 @@
+{
+  "httpRequest": {
+    "method": "GET",
+    "path": "/organization/organizations"
+  },
+  "httpResponse": {
+    "statusCode": 500,
+    "headers": {
+      "Content-Type": ["application/json"]
+    },
+    "body": {
+      "title": "Internal Server Error",
+      "message": "Unexpected error.",
+      "code": "GEN00500",
+      "extra_fields": []
+    }
+  }
+}

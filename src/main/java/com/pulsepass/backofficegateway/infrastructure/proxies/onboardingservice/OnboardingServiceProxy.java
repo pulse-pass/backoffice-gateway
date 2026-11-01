@@ -1,8 +1,8 @@
 package com.pulsepass.backofficegateway.infrastructure.proxies.onboardingservice;
 
 import com.pulsepass.backofficegateway.infrastructure.proxies.ServiceProxy;
-import com.pulsepass.backofficegateway.infrastructure.proxies.onboardingservice.dtos.OnboardingServiceRefreshTokenRequest;
-import com.pulsepass.backofficegateway.infrastructure.proxies.onboardingservice.dtos.OnboardingServiceSessionResponse;
+import com.pulsepass.backofficegateway.infrastructure.proxies.onboardingservice.dtos.OnboardingServiceCreateSessionResponse;
+import com.pulsepass.backofficegateway.infrastructure.proxies.onboardingservice.dtos.OnboardingServiceRefreshSessionRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Duration;
 import org.springframework.beans.factory.annotation.Value;
@@ -42,8 +42,8 @@ public class OnboardingServiceProxy extends ServiceProxy {
     }
 
     private ResponseEntity<byte[]> buildSessionResponse(ResponseEntity<byte[]> response) {
-        OnboardingServiceSessionResponse session = this.jsonMapper.readValue(
-                response.getBody(), OnboardingServiceSessionResponse.class);
+        OnboardingServiceCreateSessionResponse session = this.jsonMapper.readValue(
+                response.getBody(), OnboardingServiceCreateSessionResponse.class);
         return ResponseEntity.noContent()
                 .header(HttpHeaders.SET_COOKIE, this.buildCookie(
                         "pulsepass_access_token", session.accessToken(), "/",
@@ -77,7 +77,7 @@ public class OnboardingServiceProxy extends ServiceProxy {
     public ResponseEntity<byte[]> refreshSession(HttpServletRequest request, String refreshToken) {
         ResponseEntity<byte[]> response = this.forward(
                 HttpMethod.POST, "/onboarding/auth/refresh", request, MediaType.APPLICATION_JSON,
-                this.jsonMapper.writeValueAsBytes(new OnboardingServiceRefreshTokenRequest(refreshToken)), null);
+                this.jsonMapper.writeValueAsBytes(new OnboardingServiceRefreshSessionRequest(refreshToken)), null);
         if (response.getStatusCode().value() == HttpStatus.OK.value()) {
             return this.buildSessionResponse(response);
         }
@@ -90,7 +90,7 @@ public class OnboardingServiceProxy extends ServiceProxy {
     public ResponseEntity<byte[]> deleteSession(HttpServletRequest request, String refreshToken, Jwt jwt) {
         ResponseEntity<byte[]> response = this.forward(
                 HttpMethod.POST, "/onboarding/auth/logout", request, MediaType.APPLICATION_JSON,
-                this.jsonMapper.writeValueAsBytes(new OnboardingServiceRefreshTokenRequest(refreshToken)), jwt);
+                this.jsonMapper.writeValueAsBytes(new OnboardingServiceRefreshSessionRequest(refreshToken)), jwt);
         return this.buildClearedResponse(response);
     }
 }
