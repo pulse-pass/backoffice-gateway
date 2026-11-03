@@ -338,4 +338,75 @@ class OnboardingControllerTest {
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.code").value("GEN00500"));
     }
+
+    @Test
+    void readInternalLegalPerson_admin_forwardsGetWithJwtAndReturnsTargetResponse() throws Exception {
+        when(onboardingServiceProxy.forward(any(), any(), any(), any(), any(), any()))
+                .thenReturn(ResponseEntity.status(200)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("{\"data\":[]}".getBytes()));
+
+        mockMvc.perform(get("/internal/legal_persons/lp-1").cookie(this.accessCookie("admin")))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "application/json"))
+                .andExpect(content().string("{\"data\":[]}"));
+
+        verify(onboardingServiceProxy).forward(
+                eq(HttpMethod.GET), eq("/onboarding/internal/legal_persons/lp-1"),
+                any(), isNull(), isNull(), any(Jwt.class));
+    }
+
+    @Test
+    void readInternalLegalPerson_noToken_returns401WithoutCallingProxy() throws Exception {
+        mockMvc.perform(get("/internal/legal_persons/lp-1"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("GEN00401"));
+
+        verify(onboardingServiceProxy, never()).forward(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void readInternalLegalPerson_organizerRole_returns403WithoutCallingProxy() throws Exception {
+        mockMvc.perform(get("/internal/legal_persons/lp-1").cookie(this.accessCookie("organizer")))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("GEN00403"));
+
+        verify(onboardingServiceProxy, never()).forward(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void readInternalLegalPerson_proxyFails_returns500Gen00500() throws Exception {
+        when(onboardingServiceProxy.forward(any(), any(), any(), any(), any(), any()))
+                .thenThrow(new ServiceRequestException(new IllegalStateException("down")));
+
+        mockMvc.perform(get("/internal/legal_persons/lp-1").cookie(this.accessCookie("admin")))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.code").value("GEN00500"));
+    }
+
+    @Test
+    void readInternalLegalPerson_keyWithReservedCharacters_forwardsEncodedSegment() throws Exception {
+        when(onboardingServiceProxy.forward(any(), any(), any(), any(), any(), any()))
+                .thenReturn(ResponseEntity.status(200).body("{}".getBytes()));
+
+        mockMvc.perform(get("/internal/legal_persons/{key}", "x?status=PENDING").cookie(this.accessCookie("admin")))
+                .andExpect(status().isOk());
+
+        verify(onboardingServiceProxy).forward(
+                eq(HttpMethod.GET), eq("/onboarding/internal/legal_persons/x%3Fstatus=PENDING"),
+                any(), isNull(), isNull(), any(Jwt.class));
+    }
+
+    @Test
+    void readLegalPerson_keyWithReservedCharacters_forwardsEncodedSegment() throws Exception {
+        when(onboardingServiceProxy.forward(any(), any(), any(), any(), any(), any()))
+                .thenReturn(ResponseEntity.status(200).body("{}".getBytes()));
+
+        mockMvc.perform(get("/legal_persons/{key}", "a b\"c?d").cookie(this.accessCookie("organizer")))
+                .andExpect(status().isOk());
+
+        verify(onboardingServiceProxy).forward(
+                eq(HttpMethod.GET), eq("/onboarding/legal_persons/a%20b%22c%3Fd"),
+                any(), isNull(), isNull(), any(Jwt.class));
+    }
 }

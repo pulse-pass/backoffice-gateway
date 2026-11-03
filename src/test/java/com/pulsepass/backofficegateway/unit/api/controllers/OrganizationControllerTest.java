@@ -104,4 +104,49 @@ class OrganizationControllerTest {
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.code").value("GEN00500"));
     }
+
+    @Test
+    void listInternalOrganizations_admin_forwardsGetWithJwtAndReturnsTargetResponse() throws Exception {
+        when(organizationServiceProxy.forward(any(), any(), any(), any(), any(), any()))
+                .thenReturn(ResponseEntity.status(200)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("{\"data\":[]}".getBytes()));
+
+        mockMvc.perform(get("/internal/organizations").param("page", "2").cookie(this.accessCookie("admin")))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "application/json"))
+                .andExpect(content().string("{\"data\":[]}"));
+
+        verify(organizationServiceProxy).forward(
+                eq(HttpMethod.GET), eq("/organization/internal/organizations"),
+                any(), isNull(), isNull(), any(Jwt.class));
+    }
+
+    @Test
+    void listInternalOrganizations_noToken_returns401WithoutCallingProxy() throws Exception {
+        mockMvc.perform(get("/internal/organizations"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("GEN00401"));
+
+        verify(organizationServiceProxy, never()).forward(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void listInternalOrganizations_organizerRole_returns403WithoutCallingProxy() throws Exception {
+        mockMvc.perform(get("/internal/organizations").cookie(this.accessCookie("organizer")))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("GEN00403"));
+
+        verify(organizationServiceProxy, never()).forward(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void listInternalOrganizations_proxyFails_returns500Gen00500() throws Exception {
+        when(organizationServiceProxy.forward(any(), any(), any(), any(), any(), any()))
+                .thenThrow(new ServiceRequestException(new IllegalStateException("down")));
+
+        mockMvc.perform(get("/internal/organizations").cookie(this.accessCookie("admin")))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.code").value("GEN00500"));
+    }
 }

@@ -2,6 +2,7 @@ package com.pulsepass.backofficegateway.api.controllers;
 
 import com.pulsepass.backofficegateway.infrastructure.proxies.onboardingservice.OnboardingServiceProxy;
 import jakarta.servlet.http.HttpServletRequest;
+import java.nio.charset.StandardCharsets;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.util.UriUtils;
 
 @RestController
 public class OnboardingController {
@@ -38,7 +40,22 @@ public class OnboardingController {
             @AuthenticationPrincipal Jwt jwt
     ) {
         return this.onboardingServiceProxy.forward(
-                HttpMethod.GET, "/onboarding/legal_persons/" + legalPersonKey, request, null, null, jwt);
+                HttpMethod.GET,
+                "/onboarding/legal_persons/" + UriUtils.encodePathSegment(legalPersonKey, StandardCharsets.UTF_8),
+                request, null, null, jwt);
+    }
+
+    @GetMapping("/internal/legal_persons/{legalPersonKey}")
+    public ResponseEntity<byte[]> readInternalLegalPerson(
+            HttpServletRequest request,
+            @PathVariable String legalPersonKey,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        return this.onboardingServiceProxy.forward(
+                HttpMethod.GET,
+                "/onboarding/internal/legal_persons/"
+                        + UriUtils.encodePathSegment(legalPersonKey, StandardCharsets.UTF_8),
+                request, null, null, jwt);
     }
 
     @PostMapping("/auth/login")

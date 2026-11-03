@@ -15,11 +15,11 @@
           "legal_person_key": "legal-person-from-target",
           "name": "Pulse Eventos Ltda",
           "document_number": "34512889000107",
-          "status": "REJECTED",
-          "rejection_reason": "INACTIVE_DOCUMENT",
-          "rejection_reason_description": "CNPJ inapto.",
-          "created_at": "2026-10-09T14:12:00",
-          "updated_at": "2026-10-10T09:00:00"
+          "organization_status": "REJECTED",
+          "organization_rejection_reason": "INACTIVE_DOCUMENT",
+          "organization_rejection_reason_description": "CNPJ inapto.",
+          "created_at": "2026-10-09T14:12:00Z",
+          "updated_at": "2026-10-10T09:00:00Z"
         }
       ],
       "pagination": {

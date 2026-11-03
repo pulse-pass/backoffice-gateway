@@ -54,6 +54,35 @@ class TestGetLegalPerson extends BaseIntegrationTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void readLegalPerson_keyWithEncodedQuery_reachesTargetAsSingleSegment() {
+        MockTools.clearMocker();
+        MockTools.addExpectation(
+                "onboarding-service/get-legal_persons_legal_person_key",
+                Map.of("legal_person_key", ".+"));
+
+        String token = TokenTools.sign("http://pulse-pass-keycloak:8080/realms/pulse-pass",
+                Instant.now().minusSeconds(60), Instant.now().plusSeconds(300),
+                Map.of("person_key", UUID.randomUUID().toString(), "legal_person_key", UUID.randomUUID().toString(),
+                        "realm_access", Map.of("roles", List.of("organizer"))));
+
+        Response response = given()
+                    .urlEncodingEnabled(false)
+                    .cookie("pulsepass_access_token", token)
+                .when()
+                    .get("/legal_persons/x%3Fstatus=PENDING")
+                .then()
+                    .extract().response();
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        List<Map<String, Object>> requests = MockTools.retrieveRequests("GET", "/onboarding/legal_persons/.+");
+        assertThat(requests).hasSize(1);
+        assertThat(requests.get(0).get("queryStringParameters")).isNull();
+        assertThat((String) requests.get(0).get("path")).isEqualTo(
+                "/onboarding/legal_persons/x%3Fstatus=PENDING");
+    }
+
+    @Test
     void readLegalPerson_noCookie_returns401Gen00401WithoutCallingTarget() {
         MockTools.clearMocker();
         String legalPersonKey = UUID.randomUUID().toString();
