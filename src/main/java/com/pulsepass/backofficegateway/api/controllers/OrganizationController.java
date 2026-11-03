@@ -23,4 +23,13 @@ public class OrganizationController {
         return this.organizationServiceProxy.forward(
                 HttpMethod.GET, "/organization/organizations", request, null, null, jwt);
     }
+
+    @GetMapping("/internal/organizations")
+    public ResponseEntity<byte[]> listInternalOrganizations(
+            HttpServletRequest request,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        return this.organizationServiceProxy.forward(
+                HttpMethod.GET, "/organization/internal/organizations", request, null, null, jwt);
+    }
 }

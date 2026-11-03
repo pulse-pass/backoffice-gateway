@@ -557,4 +557,161 @@ class SecurityConfigurationTest {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("GEN00403"));
     }
+
+    @Test
+    void filterChain_internalOrganizationsWithoutCookie_returns401Gen00401() throws Exception {
+        mockMvc.perform(get("/internal/organizations"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("GEN00401"));
+    }
+
+    @Test
+    void filterChain_internalOrganizationsWithAdminCookie_passes() throws Exception {
+        String token = token(ISSUER, Instant.now().plusSeconds(300), "admin");
+
+        mockMvc.perform(get("/internal/organizations").cookie(this.accessCookie(token))).andExpect(status().isOk());
+    }
+
+    @Test
+    void filterChain_internalOrganizationsWithOrganizerCookie_returns403Gen00403() throws Exception {
+        String token = token(ISSUER, Instant.now().plusSeconds(300), "organizer");
+
+        mockMvc.perform(get("/internal/organizations").cookie(this.accessCookie(token)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("GEN00403"));
+    }
+
+    @Test
+    void filterChain_internalOrganizationsWithBuyerCookie_returns403Gen00403() throws Exception {
+        String token = token(ISSUER, Instant.now().plusSeconds(300), "buyer");
+
+        mockMvc.perform(get("/internal/organizations").cookie(this.accessCookie(token)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("GEN00403"));
+    }
+
+    @Test
+    void filterChain_internalLegalPersonWithoutCookie_returns401Gen00401() throws Exception {
+        mockMvc.perform(get("/internal/legal_persons/lp-1"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("GEN00401"));
+    }
+
+    @Test
+    void filterChain_internalLegalPersonWithAdminCookie_passes() throws Exception {
+        String token = token(ISSUER, Instant.now().plusSeconds(300), "admin");
+
+        mockMvc.perform(get("/internal/legal_persons/lp-1").cookie(this.accessCookie(token)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void filterChain_internalLegalPersonWithOrganizerCookie_returns403Gen00403() throws Exception {
+        String token = token(ISSUER, Instant.now().plusSeconds(300), "organizer");
+
+        mockMvc.perform(get("/internal/legal_persons/lp-1").cookie(this.accessCookie(token)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("GEN00403"));
+    }
+
+    @Test
+    void filterChain_internalLegalPersonWithBuyerCookie_returns403Gen00403() throws Exception {
+        String token = token(ISSUER, Instant.now().plusSeconds(300), "buyer");
+
+        mockMvc.perform(get("/internal/legal_persons/lp-1").cookie(this.accessCookie(token)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("GEN00403"));
+    }
+
+    @Test
+    void filterChain_internalOrganizationsWithTamperedCookie_returns401Gen00401() throws Exception {
+        String token = this.tampered(this.token(ISSUER, Instant.now().plusSeconds(300), "admin"));
+
+        mockMvc.perform(get("/internal/organizations").cookie(this.accessCookie(token)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("GEN00401"));
+    }
+
+    @Test
+    void filterChain_internalOrganizationsWithExpiredCookie_returns401Gen00401() throws Exception {
+        String token = this.token(ISSUER, Instant.now().minusSeconds(300), "admin");
+
+        mockMvc.perform(get("/internal/organizations").cookie(this.accessCookie(token)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("GEN00401"));
+    }
+
+    @Test
+    void filterChain_internalOrganizationsWithCookieSignedByOtherKey_returns401Gen00401() throws Exception {
+        String token = TokenTools.sign(TokenTools.otherPrivateKey(), ISSUER, Instant.now().minusSeconds(60),
+                Instant.now().plusSeconds(300), Map.of("realm_access", Map.of("roles", List.of("admin"))));
+
+        mockMvc.perform(get("/internal/organizations").cookie(this.accessCookie(token)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("GEN00401"));
+    }
+
+    @Test
+    void filterChain_internalOrganizationsWithWrongIssuerCookie_returns401Gen00401() throws Exception {
+        String token = this.token("http://other.example/realms/pulse-pass", Instant.now().plusSeconds(300), "admin");
+
+        mockMvc.perform(get("/internal/organizations").cookie(this.accessCookie(token)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("GEN00401"));
+    }
+
+    @Test
+    void filterChain_internalLegalPersonWithTamperedCookie_returns401Gen00401() throws Exception {
+        String token = this.tampered(this.token(ISSUER, Instant.now().plusSeconds(300), "admin"));
+
+        mockMvc.perform(get("/internal/legal_persons/lp-1").cookie(this.accessCookie(token)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("GEN00401"));
+    }
+
+    @Test
+    void filterChain_internalLegalPersonWithExpiredCookie_returns401Gen00401() throws Exception {
+        String token = this.token(ISSUER, Instant.now().minusSeconds(300), "admin");
+
+        mockMvc.perform(get("/internal/legal_persons/lp-1").cookie(this.accessCookie(token)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("GEN00401"));
+    }
+
+    @Test
+    void filterChain_internalLegalPersonWithCookieSignedByOtherKey_returns401Gen00401() throws Exception {
+        String token = TokenTools.sign(TokenTools.otherPrivateKey(), ISSUER, Instant.now().minusSeconds(60),
+                Instant.now().plusSeconds(300), Map.of("realm_access", Map.of("roles", List.of("admin"))));
+
+        mockMvc.perform(get("/internal/legal_persons/lp-1").cookie(this.accessCookie(token)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("GEN00401"));
+    }
+
+    @Test
+    void filterChain_internalLegalPersonWithWrongIssuerCookie_returns401Gen00401() throws Exception {
+        String token = this.token("http://other.example/realms/pulse-pass", Instant.now().plusSeconds(300), "admin");
+
+        mockMvc.perform(get("/internal/legal_persons/lp-1").cookie(this.accessCookie(token)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("GEN00401"));
+    }
+
+    @Test
+    void filterChain_internalPostWithOrganizerCookie_returns403Gen00403() throws Exception {
+        String token = token(ISSUER, Instant.now().plusSeconds(300), "organizer");
+
+        mockMvc.perform(post("/internal/organizations").with(this.csrfToken()).cookie(this.accessCookie(token)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("GEN00403"));
+    }
+
+    @Test
+    void filterChain_internalPostWithBuyerCookie_returns403Gen00403() throws Exception {
+        String token = token(ISSUER, Instant.now().plusSeconds(300), "buyer");
+
+        mockMvc.perform(post("/internal/organizations").with(this.csrfToken()).cookie(this.accessCookie(token)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("GEN00403"));
+    }
 }

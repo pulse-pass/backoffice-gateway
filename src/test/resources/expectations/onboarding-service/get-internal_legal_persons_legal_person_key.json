@@ -1,0 +1,32 @@
+{
+  "httpRequest": {
+    "method": "GET",
+    "path": "/onboarding/internal/legal_persons/{legal_person_key}"
+  },
+  "httpResponse": {
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": ["application/json"]
+    },
+    "body": {
+      "legal_person_key": "legal-person-from-target",
+      "name": "Pulse Eventos Ltda",
+      "document_number": "34512889000107",
+      "email": "contato@pulseeventos.com.br",
+      "created_at": "2026-10-09T14:12:00Z",
+      "phone_numbers": [
+        {
+          "country_code": "55",
+          "area_code": "11",
+          "number": "987654321"
+        }
+      ],
+      "owner": {
+        "person_key": "person-from-target",
+        "name": "Maria Souza",
+        "document_number": "04833127012",
+        "email": "maria@pulseeventos.com.br"
+      }
+    }
+  }
+}
