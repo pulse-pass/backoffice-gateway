@@ -20,6 +20,7 @@ import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationProvider;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
@@ -56,8 +57,10 @@ public class SecurityConfiguration {
             throws GeneralSecurityException {
         JwtAuthenticationProvider provider = new JwtAuthenticationProvider(this.jwtDecoder());
         provider.setJwtAuthenticationConverter(this.jwtAuthenticationConverter());
-        BearerTokenAuthenticationFilter filter = new BearerTokenAuthenticationFilter(new ProviderManager(provider));
-        filter.setBearerTokenResolver(new CookieBearerTokenResolver(publicRoutes));
+        BearerTokenAuthenticationConverter converter = new BearerTokenAuthenticationConverter();
+        converter.setBearerTokenResolver(new CookieBearerTokenResolver(publicRoutes));
+        BearerTokenAuthenticationFilter filter = new BearerTokenAuthenticationFilter(
+                new ProviderManager(provider), converter);
         filter.setAuthenticationEntryPoint(this.securityErrorHandler);
         filter.setAuthenticationFailureHandler(new AuthenticationEntryPointFailureHandler(this.securityErrorHandler));
         return filter;

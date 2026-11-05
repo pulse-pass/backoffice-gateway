@@ -16,6 +16,7 @@ paths:
 
 ## Method order
 - Private methods always **before** public ones, in the order they are used.
+- In controllers, public methods are grouped by resource and, inside each resource, go: create, then update, then delete, then get/list.
 - Prefer separate, clear `if`s over compound `||` conditions when each case has its own meaning.
 
 ## Code
@@ -33,6 +34,7 @@ paths:
 - The forward is raw, with no schema or DTO: the controller takes `HttpServletRequest` and `@RequestBody(required = false) byte[] body`; the body, the query string and the `Content-Type` and `Accept-Language` headers go to the target.
 - `internal-token` and `Authorization` are never forwarded. The `/<service>/internal/**` routes of the services are exposed only as `GET /internal/**` (without the service prefix, e.g. `GET /internal/organizations` → `/organization/internal/organizations`, `GET /internal/legal_persons/{legalPersonKey}` → `/onboarding/internal/legal_persons/{legalPersonKey}`), only to the `admin` role, forwarded with the `Jwt` so the service receives `selected-user-roles` with `admin` and accepts it in place of the `internal-token`, which the gateway never sends. Their controller methods are named `listInternal*`/`readInternal*`.
 - The response comes back as the target sent it: same status, same body (bytes) and same `Content-Type`, for any status (201, 400, 409, 415, 500...). The proxy uses `RestClient.exchange(...)`, which does not throw on 4xx/5xx.
+- Internal write routes are forwarded raw by the controller through `forward` with the verb of the route: `PATCH /internal/organizations/{organizationKey}` sends the client body with `MediaType.APPLICATION_JSON`, `DELETE /internal/organizations/{organizationKey}` forwards no body and the service's 204 comes back as 204 with no body and no `Content-Type` (`ServiceProxy` already maps an empty body to null); both need the CSRF token like any authenticated write.
 - List routes follow the services' `PaginatedResponse<T>(data, pagination{page, page_size})` and are forwarded unchanged, query string (`page`, `page_size`) included.
 - The gateway exposes routes without the service prefix (`POST /legal_persons`) and adds it when forwarding (`/onboarding/legal_persons`).
 - The base URL comes from `app.<name>.url`, fed by the `<NAME>_URL` variable that `service-start.sh` resolves from the `<NAME>_TEST_URL` / `<NAME>_DEVELOPMENT_URL` pair. Timeouts come from `spring.http.clients.connect-timeout` and `spring.http.clients.read-timeout`, which Spring Boot applies to the auto-configured `RestClient.Builder`; proxies receive the builder injected and never build a request factory by hand. Redirects are not followed (`spring.http.clients.redirects=dont-follow`), so a 3xx of the target reaches the client as it was sent. An empty response body goes back as no body, so Spring does not invent a `Content-Type`.

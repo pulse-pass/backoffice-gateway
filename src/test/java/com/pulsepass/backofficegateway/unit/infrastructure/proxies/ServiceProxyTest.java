@@ -109,6 +109,36 @@ class ServiceProxyTest {
     }
 
     @Test
+    void forward_deleteEmptyResponse_returns204WithoutBodyOrContentType() {
+        String path = "/organization/internal/organizations/k";
+        stub.on("DELETE", path, StubHttpServer.Response.empty(204));
+        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder(), JSON_MAPPER);
+
+        var response = proxy.forward(HttpMethod.DELETE, path, request, null, null, null);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(204);
+        assertThat(response.getHeaders().getContentType()).isNull();
+        assertThat(response.getBody()).isNull();
+        assertThat(stub.received().get(0).method()).isEqualTo("DELETE");
+    }
+
+    @Test
+    void forward_patchWithJsonOverride_sendsBodyAndReturnsUnprocessableEntityBody() {
+        String path = "/organization/internal/organizations/k";
+        byte[] body = "{\"organization_status\":\"APPROVED\"}".getBytes(StandardCharsets.UTF_8);
+        stub.on("PATCH", path, StubHttpServer.Response.of(422, "{\"code\":\"ORG00003\"}"));
+        var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder(), JSON_MAPPER);
+
+        var response = proxy.forward(HttpMethod.PATCH, path, request, MediaType.APPLICATION_JSON, body, null);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(422);
+        assertThat(new String(response.getBody(), StandardCharsets.UTF_8)).isEqualTo("{\"code\":\"ORG00003\"}");
+        assertThat(stub.received().get(0).method()).isEqualTo("PATCH");
+        assertThat(stub.received().get(0).body()).isEqualTo(new String(body, StandardCharsets.UTF_8));
+        assertThat(stub.received().get(0).headers().get("content-type")).startsWith("application/json");
+    }
+
+    @Test
     void forward_requestWithBody_sendsRawBodyToTarget() {
         String path = "/onboarding/legal_persons";
         byte[] body = "{\"document_number\":\"11222333000181\"}".getBytes(StandardCharsets.UTF_8);

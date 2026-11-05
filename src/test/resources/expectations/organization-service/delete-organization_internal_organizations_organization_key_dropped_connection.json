@@ -1,0 +1,9 @@
+{
+  "httpRequest": {
+    "method": "DELETE",
+    "path": "/organization/internal/organizations/{organization_key}"
+  },
+  "httpError": {
+    "dropConnection": true
+  }
+}
