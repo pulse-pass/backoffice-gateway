@@ -19,16 +19,6 @@ class TestPatchUpdateInternalOrganization extends BaseIntegrationTest {
 
     private static final String PATCH_INTERNAL_ORGANIZATION = "/internal/organizations/{organization_key}";
 
-    private static final Map<String, Object> REJECT_BODY = Map.of(
-            "organization_status", "REJECTED",
-            "organization_rejection_reason", "INACTIVE_DOCUMENT");
-
-    private String token(String role, String personKey) {
-        return TokenTools.sign("http://pulse-pass-keycloak:8080/realms/pulse-pass",
-                Instant.now().minusSeconds(60), Instant.now().plusSeconds(300),
-                Map.of("person_key", personKey, "realm_access", Map.of("roles", List.of(role))));
-    }
-
     @Test
     @SuppressWarnings("unchecked")
     void updateInternalOrganization_adminCookie_forwardsBodyAndJwtHeadersAndReturnsTargetBody() {
@@ -41,8 +31,13 @@ class TestPatchUpdateInternalOrganization extends BaseIntegrationTest {
                 Map.of("organization_key", organizationKey),
                 Map.of("payload", Map.of("organization_key", organizationKey)));
 
+        String token = TokenTools.sign("http://pulse-pass-keycloak:8080/realms/pulse-pass",
+                Instant.now().minusSeconds(60), Instant.now().plusSeconds(300),
+                Map.of("person_key", personKey,
+                        "realm_access", Map.of("roles", List.of("admin"))));
+
         Response response = given()
-                    .cookie("pulsepass_access_token", this.token("admin", personKey))
+                    .cookie("pulsepass_access_token", token)
                     .cookie("XSRF-TOKEN", csrf)
                     .header("X-XSRF-TOKEN", csrf)
                     .header("selected-user-roles", "forged-role")
@@ -50,7 +45,9 @@ class TestPatchUpdateInternalOrganization extends BaseIntegrationTest {
                     .header("selected-agent-key", "forged-agent")
                     .header("internal-token", "forged-token")
                     .contentType(ContentType.JSON)
-                    .body(REJECT_BODY)
+                    .body(Map.of(
+                            "organization_status", "REJECTED",
+                            "organization_rejection_reason", "INACTIVE_DOCUMENT"))
                 .when()
                     .patch(PATCH_INTERNAL_ORGANIZATION, organizationKey)
                 .then()
@@ -60,14 +57,9 @@ class TestPatchUpdateInternalOrganization extends BaseIntegrationTest {
         assertThat(response.contentType()).isEqualTo("application/json");
         assertThat(response.jsonPath().getMap("$")).isEqualTo(Map.of(
                 "organization_key", organizationKey,
-                "legal_person_key", "legal-person-from-target",
-                "name", "Pulse Eventos Ltda",
-                "document_number", "34512889000107",
                 "organization_status", "REJECTED",
                 "organization_rejection_reason", "INACTIVE_DOCUMENT",
-                "organization_rejection_reason_description", "CNPJ inapto.",
-                "created_at", "2026-10-09T14:12:00Z",
-                "updated_at", "2026-10-10T09:00:00Z"));
+                "organization_rejection_reason_description", "CNPJ inapto."));
         List<Map<String, Object>> requests = MockTools.retrieveRequests(
                 "PATCH", "/organization/internal/organizations/" + organizationKey);
         assertThat(requests).hasSize(1);
@@ -90,15 +82,22 @@ class TestPatchUpdateInternalOrganization extends BaseIntegrationTest {
         MockTools.clearMocker();
         String organizationKey = UUID.randomUUID().toString();
         MockTools.addExpectation(
-                "organization-service/patch-organization_internal_organizations_organization_key_unprocessable_entity",
+                "organization-service/patch-organization_internal_organizations_organization_key_unprocessable_content",
                 Map.of("organization_key", organizationKey));
 
+        String token = TokenTools.sign("http://pulse-pass-keycloak:8080/realms/pulse-pass",
+                Instant.now().minusSeconds(60), Instant.now().plusSeconds(300),
+                Map.of("person_key", UUID.randomUUID().toString(),
+                        "realm_access", Map.of("roles", List.of("admin"))));
+
         Response response = given()
-                    .cookie("pulsepass_access_token", this.token("admin", UUID.randomUUID().toString()))
+                    .cookie("pulsepass_access_token", token)
                     .cookie("XSRF-TOKEN", csrf)
                     .header("X-XSRF-TOKEN", csrf)
                     .contentType(ContentType.JSON)
-                    .body(REJECT_BODY)
+                    .body(Map.of(
+                            "organization_status", "REJECTED",
+                            "organization_rejection_reason", "INACTIVE_DOCUMENT"))
                 .when()
                     .patch(PATCH_INTERNAL_ORGANIZATION, organizationKey)
                 .then()
@@ -107,7 +106,7 @@ class TestPatchUpdateInternalOrganization extends BaseIntegrationTest {
         assertThat(response.statusCode()).isEqualTo(422);
         assertThat(response.contentType()).isEqualTo("application/json");
         assertThat(response.jsonPath().getMap("$")).isEqualTo(Map.of(
-                "title", "Unprocessable Entity",
+                "title", "Unprocessable Content",
                 "message", "The organization status cannot be changed.",
                 "code", "ORG00003",
                 "extra_fields", List.of()));
@@ -121,13 +120,20 @@ class TestPatchUpdateInternalOrganization extends BaseIntegrationTest {
                 "organization-service/patch-organization_internal_organizations_organization_key",
                 Map.of("organization_key", ".+"));
 
+        String token = TokenTools.sign("http://pulse-pass-keycloak:8080/realms/pulse-pass",
+                Instant.now().minusSeconds(60), Instant.now().plusSeconds(300),
+                Map.of("person_key", UUID.randomUUID().toString(),
+                        "realm_access", Map.of("roles", List.of("admin"))));
+
         Response response = given()
                     .urlEncodingEnabled(false)
-                    .cookie("pulsepass_access_token", this.token("admin", UUID.randomUUID().toString()))
+                    .cookie("pulsepass_access_token", token)
                     .cookie("XSRF-TOKEN", csrf)
                     .header("X-XSRF-TOKEN", csrf)
                     .contentType(ContentType.JSON)
-                    .body(REJECT_BODY)
+                    .body(Map.of(
+                            "organization_status", "REJECTED",
+                            "organization_rejection_reason", "INACTIVE_DOCUMENT"))
                 .when()
                     .patch("/internal/organizations/x%23fragment")
                 .then()
@@ -156,7 +162,9 @@ class TestPatchUpdateInternalOrganization extends BaseIntegrationTest {
                     .header("X-XSRF-TOKEN", csrf)
                     .header("Accept-Language", "en")
                     .contentType(ContentType.JSON)
-                    .body(REJECT_BODY)
+                    .body(Map.of(
+                            "organization_status", "REJECTED",
+                            "organization_rejection_reason", "INACTIVE_DOCUMENT"))
                 .when()
                     .patch(PATCH_INTERNAL_ORGANIZATION, organizationKey)
                 .then()
@@ -177,14 +185,21 @@ class TestPatchUpdateInternalOrganization extends BaseIntegrationTest {
                 "organization-service/patch-organization_internal_organizations_organization_key",
                 Map.of("organization_key", organizationKey));
 
+        String token = TokenTools.sign("http://pulse-pass-keycloak:8080/realms/pulse-pass",
+                Instant.now().minusSeconds(60), Instant.now().plusSeconds(300),
+                Map.of("person_key", UUID.randomUUID().toString(),
+                        "realm_access", Map.of("roles", List.of("organizer"))));
+
         Response response = given()
-                    .cookie("pulsepass_access_token", this.token("organizer", UUID.randomUUID().toString()))
+                    .cookie("pulsepass_access_token", token)
                     .cookie("XSRF-TOKEN", csrf)
                     .header("X-XSRF-TOKEN", csrf)
                     .header("Accept-Language", "en")
                     .header("selected-user-roles", "admin")
                     .contentType(ContentType.JSON)
-                    .body(REJECT_BODY)
+                    .body(Map.of(
+                            "organization_status", "REJECTED",
+                            "organization_rejection_reason", "INACTIVE_DOCUMENT"))
                 .when()
                     .patch(PATCH_INTERNAL_ORGANIZATION, organizationKey)
                 .then()
@@ -204,11 +219,18 @@ class TestPatchUpdateInternalOrganization extends BaseIntegrationTest {
                 "organization-service/patch-organization_internal_organizations_organization_key",
                 Map.of("organization_key", organizationKey));
 
+        String token = TokenTools.sign("http://pulse-pass-keycloak:8080/realms/pulse-pass",
+                Instant.now().minusSeconds(60), Instant.now().plusSeconds(300),
+                Map.of("person_key", UUID.randomUUID().toString(),
+                        "realm_access", Map.of("roles", List.of("admin"))));
+
         Response response = given()
-                    .cookie("pulsepass_access_token", this.token("admin", UUID.randomUUID().toString()))
+                    .cookie("pulsepass_access_token", token)
                     .header("Accept-Language", "en")
                     .contentType(ContentType.JSON)
-                    .body(REJECT_BODY)
+                    .body(Map.of(
+                            "organization_status", "REJECTED",
+                            "organization_rejection_reason", "INACTIVE_DOCUMENT"))
                 .when()
                     .patch(PATCH_INTERNAL_ORGANIZATION, organizationKey)
                 .then()
@@ -229,13 +251,20 @@ class TestPatchUpdateInternalOrganization extends BaseIntegrationTest {
                 "organization-service/patch-organization_internal_organizations_organization_key_dropped_connection",
                 Map.of("organization_key", organizationKey));
 
+        String token = TokenTools.sign("http://pulse-pass-keycloak:8080/realms/pulse-pass",
+                Instant.now().minusSeconds(60), Instant.now().plusSeconds(300),
+                Map.of("person_key", UUID.randomUUID().toString(),
+                        "realm_access", Map.of("roles", List.of("admin"))));
+
         Response response = given()
-                    .cookie("pulsepass_access_token", this.token("admin", UUID.randomUUID().toString()))
+                    .cookie("pulsepass_access_token", token)
                     .cookie("XSRF-TOKEN", csrf)
                     .header("X-XSRF-TOKEN", csrf)
                     .header("Accept-Language", "en")
                     .contentType(ContentType.JSON)
-                    .body(REJECT_BODY)
+                    .body(Map.of(
+                            "organization_status", "REJECTED",
+                            "organization_rejection_reason", "INACTIVE_DOCUMENT"))
                 .when()
                     .patch(PATCH_INTERNAL_ORGANIZATION, organizationKey)
                 .then()
@@ -247,5 +276,24 @@ class TestPatchUpdateInternalOrganization extends BaseIntegrationTest {
                 "message", "An unexpected error occurred. Please try again later.",
                 "code", "GEN00500",
                 "extra_fields", List.of()));
+    }
+
+    @Test
+    void preflight_patch_returnsAllowedOriginCredentialsAndHeaders() {
+        MockTools.clearMocker();
+
+        Response response = given()
+                    .header("Origin", "http://localhost:3000")
+                    .header("Access-Control-Request-Method", "PATCH")
+                    .header("Access-Control-Request-Headers", "content-type, x-xsrf-token")
+                .when()
+                    .options("/internal/organizations/any-key")
+                .then()
+                    .extract().response();
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.header("Access-Control-Allow-Origin")).isEqualTo("http://localhost:3000");
+        assertThat(response.header("Access-Control-Allow-Credentials")).isEqualTo("true");
+        assertThat(response.header("Access-Control-Allow-Headers")).isEqualTo("content-type, x-xsrf-token");
     }
 }

@@ -18,12 +18,6 @@ class TestDeleteInternalOrganization extends BaseIntegrationTest {
 
     private static final String DELETE_INTERNAL_ORGANIZATION = "/internal/organizations/{organization_key}";
 
-    private String token(String role, String personKey) {
-        return TokenTools.sign("http://pulse-pass-keycloak:8080/realms/pulse-pass",
-                Instant.now().minusSeconds(60), Instant.now().plusSeconds(300),
-                Map.of("person_key", personKey, "realm_access", Map.of("roles", List.of(role))));
-    }
-
     @Test
     @SuppressWarnings("unchecked")
     void deleteInternalOrganization_adminCookie_forwardsJwtHeadersAndReturns204WithoutBody() {
@@ -35,8 +29,13 @@ class TestDeleteInternalOrganization extends BaseIntegrationTest {
                 "organization-service/delete-organization_internal_organizations_organization_key",
                 Map.of("organization_key", organizationKey));
 
+        String token = TokenTools.sign("http://pulse-pass-keycloak:8080/realms/pulse-pass",
+                Instant.now().minusSeconds(60), Instant.now().plusSeconds(300),
+                Map.of("person_key", personKey,
+                        "realm_access", Map.of("roles", List.of("admin"))));
+
         Response response = given()
-                    .cookie("pulsepass_access_token", this.token("admin", personKey))
+                    .cookie("pulsepass_access_token", token)
                     .cookie("XSRF-TOKEN", csrf)
                     .header("X-XSRF-TOKEN", csrf)
                     .header("selected-user-roles", "forged-role")
@@ -72,8 +71,13 @@ class TestDeleteInternalOrganization extends BaseIntegrationTest {
                 "organization-service/delete-organization_internal_organizations_organization_key_not_found",
                 Map.of("organization_key", organizationKey));
 
+        String token = TokenTools.sign("http://pulse-pass-keycloak:8080/realms/pulse-pass",
+                Instant.now().minusSeconds(60), Instant.now().plusSeconds(300),
+                Map.of("person_key", UUID.randomUUID().toString(),
+                        "realm_access", Map.of("roles", List.of("admin"))));
+
         Response response = given()
-                    .cookie("pulsepass_access_token", this.token("admin", UUID.randomUUID().toString()))
+                    .cookie("pulsepass_access_token", token)
                     .cookie("XSRF-TOKEN", csrf)
                     .header("X-XSRF-TOKEN", csrf)
                 .when()
@@ -98,9 +102,14 @@ class TestDeleteInternalOrganization extends BaseIntegrationTest {
                 "organization-service/delete-organization_internal_organizations_organization_key",
                 Map.of("organization_key", ".+"));
 
+        String token = TokenTools.sign("http://pulse-pass-keycloak:8080/realms/pulse-pass",
+                Instant.now().minusSeconds(60), Instant.now().plusSeconds(300),
+                Map.of("person_key", UUID.randomUUID().toString(),
+                        "realm_access", Map.of("roles", List.of("admin"))));
+
         Response response = given()
                     .urlEncodingEnabled(false)
-                    .cookie("pulsepass_access_token", this.token("admin", UUID.randomUUID().toString()))
+                    .cookie("pulsepass_access_token", token)
                     .cookie("XSRF-TOKEN", csrf)
                     .header("X-XSRF-TOKEN", csrf)
                 .when()
@@ -150,8 +159,13 @@ class TestDeleteInternalOrganization extends BaseIntegrationTest {
                 "organization-service/delete-organization_internal_organizations_organization_key",
                 Map.of("organization_key", organizationKey));
 
+        String token = TokenTools.sign("http://pulse-pass-keycloak:8080/realms/pulse-pass",
+                Instant.now().minusSeconds(60), Instant.now().plusSeconds(300),
+                Map.of("person_key", UUID.randomUUID().toString(),
+                        "realm_access", Map.of("roles", List.of("organizer"))));
+
         Response response = given()
-                    .cookie("pulsepass_access_token", this.token("organizer", UUID.randomUUID().toString()))
+                    .cookie("pulsepass_access_token", token)
                     .cookie("XSRF-TOKEN", csrf)
                     .header("X-XSRF-TOKEN", csrf)
                     .header("Accept-Language", "en")
@@ -175,8 +189,13 @@ class TestDeleteInternalOrganization extends BaseIntegrationTest {
                 "organization-service/delete-organization_internal_organizations_organization_key",
                 Map.of("organization_key", organizationKey));
 
+        String token = TokenTools.sign("http://pulse-pass-keycloak:8080/realms/pulse-pass",
+                Instant.now().minusSeconds(60), Instant.now().plusSeconds(300),
+                Map.of("person_key", UUID.randomUUID().toString(),
+                        "realm_access", Map.of("roles", List.of("admin"))));
+
         Response response = given()
-                    .cookie("pulsepass_access_token", this.token("admin", UUID.randomUUID().toString()))
+                    .cookie("pulsepass_access_token", token)
                     .header("Accept-Language", "en")
                 .when()
                     .delete(DELETE_INTERNAL_ORGANIZATION, organizationKey)
@@ -198,8 +217,13 @@ class TestDeleteInternalOrganization extends BaseIntegrationTest {
                 "organization-service/delete-organization_internal_organizations_organization_key_dropped_connection",
                 Map.of("organization_key", organizationKey));
 
+        String token = TokenTools.sign("http://pulse-pass-keycloak:8080/realms/pulse-pass",
+                Instant.now().minusSeconds(60), Instant.now().plusSeconds(300),
+                Map.of("person_key", UUID.randomUUID().toString(),
+                        "realm_access", Map.of("roles", List.of("admin"))));
+
         Response response = given()
-                    .cookie("pulsepass_access_token", this.token("admin", UUID.randomUUID().toString()))
+                    .cookie("pulsepass_access_token", token)
                     .cookie("XSRF-TOKEN", csrf)
                     .header("X-XSRF-TOKEN", csrf)
                     .header("Accept-Language", "en")
@@ -214,5 +238,24 @@ class TestDeleteInternalOrganization extends BaseIntegrationTest {
                 "message", "An unexpected error occurred. Please try again later.",
                 "code", "GEN00500",
                 "extra_fields", List.of()));
+    }
+
+    @Test
+    void preflight_delete_returnsAllowedOriginCredentialsAndHeaders() {
+        MockTools.clearMocker();
+
+        Response response = given()
+                    .header("Origin", "http://localhost:3000")
+                    .header("Access-Control-Request-Method", "DELETE")
+                    .header("Access-Control-Request-Headers", "content-type, x-xsrf-token")
+                .when()
+                    .options("/internal/organizations/any-key")
+                .then()
+                    .extract().response();
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.header("Access-Control-Allow-Origin")).isEqualTo("http://localhost:3000");
+        assertThat(response.header("Access-Control-Allow-Credentials")).isEqualTo("true");
+        assertThat(response.header("Access-Control-Allow-Headers")).isEqualTo("content-type, x-xsrf-token");
     }
 }

@@ -16,13 +16,6 @@ import org.junit.jupiter.api.Test;
 class TestGetInternalOrganizationRejectionReasons extends BaseIntegrationTest {
 
     private static final String GET_INTERNAL_REJECTION_REASONS = "/internal/organization_rejection_reasons";
-    private static final String TARGET_PATH = "/organization/internal/organization_rejection_reasons";
-
-    private String token(String role, String personKey) {
-        return TokenTools.sign("http://pulse-pass-keycloak:8080/realms/pulse-pass",
-                Instant.now().minusSeconds(60), Instant.now().plusSeconds(300),
-                Map.of("person_key", personKey, "realm_access", Map.of("roles", List.of(role))));
-    }
 
     @Test
     @SuppressWarnings("unchecked")
@@ -31,8 +24,13 @@ class TestGetInternalOrganizationRejectionReasons extends BaseIntegrationTest {
         MockTools.addExpectation("organization-service/get-organization_internal_organization_rejection_reasons");
         String personKey = UUID.randomUUID().toString();
 
+        String token = TokenTools.sign("http://pulse-pass-keycloak:8080/realms/pulse-pass",
+                Instant.now().minusSeconds(60), Instant.now().plusSeconds(300),
+                Map.of("person_key", personKey,
+                        "realm_access", Map.of("roles", List.of("admin"))));
+
         Response response = given()
-                    .cookie("pulsepass_access_token", this.token("admin", personKey))
+                    .cookie("pulsepass_access_token", token)
                     .header("selected-user-roles", "forged-role")
                     .header("selected-user-key", "forged-user")
                     .header("selected-agent-key", "forged-agent")
@@ -51,7 +49,8 @@ class TestGetInternalOrganizationRejectionReasons extends BaseIntegrationTest {
                         "organization_rejection_reason", "INACTIVE_DOCUMENT",
                         "organization_rejection_reason_description", "CNPJ inapto.")),
                 "pagination", Map.of("page", 1, "page_size", 30)));
-        List<Map<String, Object>> requests = MockTools.retrieveRequests("GET", TARGET_PATH);
+        List<Map<String, Object>> requests = MockTools.retrieveRequests(
+                "GET", "/organization/internal/organization_rejection_reasons");
         assertThat(requests).hasSize(1);
         Map<String, List<String>> headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         headers.putAll((Map<String, List<String>>) requests.get(0).get("headers"));
@@ -80,7 +79,9 @@ class TestGetInternalOrganizationRejectionReasons extends BaseIntegrationTest {
 
         assertThat(response.statusCode()).isEqualTo(401);
         assertThat(response.jsonPath().getString("code")).isEqualTo("GEN00401");
-        assertThat(MockTools.retrieveRequests("GET", TARGET_PATH)).isEmpty();
+        assertThat(MockTools.retrieveRequests(
+                "GET", "/organization/internal/organization_rejection_reasons"))
+                .isEmpty();
     }
 
     @Test
@@ -88,8 +89,13 @@ class TestGetInternalOrganizationRejectionReasons extends BaseIntegrationTest {
         MockTools.clearMocker();
         MockTools.addExpectation("organization-service/get-organization_internal_organization_rejection_reasons");
 
+        String token = TokenTools.sign("http://pulse-pass-keycloak:8080/realms/pulse-pass",
+                Instant.now().minusSeconds(60), Instant.now().plusSeconds(300),
+                Map.of("person_key", UUID.randomUUID().toString(),
+                        "realm_access", Map.of("roles", List.of("organizer"))));
+
         Response response = given()
-                    .cookie("pulsepass_access_token", this.token("organizer", UUID.randomUUID().toString()))
+                    .cookie("pulsepass_access_token", token)
                     .header("Accept-Language", "en")
                     .header("selected-user-roles", "admin")
                     .header("internal-token", "forged-token")
@@ -100,7 +106,9 @@ class TestGetInternalOrganizationRejectionReasons extends BaseIntegrationTest {
 
         assertThat(response.statusCode()).isEqualTo(403);
         assertThat(response.jsonPath().getString("code")).isEqualTo("GEN00403");
-        assertThat(MockTools.retrieveRequests("GET", TARGET_PATH)).isEmpty();
+        assertThat(MockTools.retrieveRequests(
+                "GET", "/organization/internal/organization_rejection_reasons"))
+                .isEmpty();
     }
 
     @Test
@@ -109,8 +117,13 @@ class TestGetInternalOrganizationRejectionReasons extends BaseIntegrationTest {
         MockTools.addExpectation(
                 "organization-service/get-organization_internal_organization_rejection_reasons_dropped_connection");
 
+        String token = TokenTools.sign("http://pulse-pass-keycloak:8080/realms/pulse-pass",
+                Instant.now().minusSeconds(60), Instant.now().plusSeconds(300),
+                Map.of("person_key", UUID.randomUUID().toString(),
+                        "realm_access", Map.of("roles", List.of("admin"))));
+
         Response response = given()
-                    .cookie("pulsepass_access_token", this.token("admin", UUID.randomUUID().toString()))
+                    .cookie("pulsepass_access_token", token)
                     .header("Accept-Language", "en")
                 .when()
                     .get(GET_INTERNAL_REJECTION_REASONS)
@@ -123,5 +136,22 @@ class TestGetInternalOrganizationRejectionReasons extends BaseIntegrationTest {
                 "message", "An unexpected error occurred. Please try again later.",
                 "code", "GEN00500",
                 "extra_fields", List.of()));
+    }
+
+    @Test
+    void preflight_get_returnsAllowedOriginCredentialsAndHeaders() {
+        MockTools.clearMocker();
+
+        Response response = given()
+                    .header("Origin", "http://localhost:3000")
+                    .header("Access-Control-Request-Method", "GET")
+                .when()
+                    .options("/internal/organization_rejection_reasons")
+                .then()
+                    .extract().response();
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.header("Access-Control-Allow-Origin")).isEqualTo("http://localhost:3000");
+        assertThat(response.header("Access-Control-Allow-Credentials")).isEqualTo("true");
     }
 }

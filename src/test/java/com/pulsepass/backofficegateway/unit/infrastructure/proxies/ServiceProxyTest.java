@@ -110,7 +110,7 @@ class ServiceProxyTest {
 
     @Test
     void forward_deleteEmptyResponse_returns204WithoutBodyOrContentType() {
-        String path = "/organization/internal/organizations/k";
+        String path = "/onboarding/internal/organizations/k";
         stub.on("DELETE", path, StubHttpServer.Response.empty(204));
         var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder(), JSON_MAPPER);
 
@@ -124,7 +124,7 @@ class ServiceProxyTest {
 
     @Test
     void forward_patchWithJsonOverride_sendsBodyAndReturnsUnprocessableEntityBody() {
-        String path = "/organization/internal/organizations/k";
+        String path = "/onboarding/internal/organizations/k";
         byte[] body = "{\"organization_status\":\"APPROVED\"}".getBytes(StandardCharsets.UTF_8);
         stub.on("PATCH", path, StubHttpServer.Response.of(422, "{\"code\":\"ORG00003\"}"));
         var proxy = new OnboardingServiceProxy(stub.url(), RestClient.builder(), JSON_MAPPER);

@@ -1,12 +1,12 @@
 package com.pulsepass.backofficegateway.unit.api.controllers;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -24,6 +24,8 @@ import com.pulsepass.backofficegateway.infrastructure.proxies.ServiceRequestExce
 import com.pulsepass.backofficegateway.infrastructure.proxies.organizationservice.OrganizationServiceProxy;
 import jakarta.servlet.http.Cookie;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -37,6 +39,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 @WebMvcTest(OrganizationController.class)
 @Import({GlobalExceptionHandler.class, SecurityConfiguration.class, SecurityErrorHandler.class})
@@ -54,6 +57,19 @@ class OrganizationControllerTest {
 
     @MockitoBean
     private OrganizationServiceProxy organizationServiceProxy;
+
+    private RequestPostProcessor csrfToken() {
+        return request -> {
+            List<Cookie> cookies = new ArrayList<>();
+            if (request.getCookies() != null) {
+                cookies.addAll(List.of(request.getCookies()));
+            }
+            cookies.add(new Cookie("XSRF-TOKEN", "csrf-value"));
+            request.setCookies(cookies.toArray(new Cookie[0]));
+            request.addHeader("X-XSRF-TOKEN", "csrf-value");
+            return request;
+        };
+    }
 
     private Cookie accessCookie(String role) {
         String token = TokenTools.sign(
@@ -187,7 +203,7 @@ class OrganizationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .body("{\"organization_key\":\"k\"}".getBytes()));
 
-        mockMvc.perform(patch("/internal/organizations/k").with(csrf())
+        mockMvc.perform(patch("/internal/organizations/k").with(this.csrfToken())
                         .cookie(this.accessCookie("admin"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
@@ -196,7 +212,7 @@ class OrganizationControllerTest {
 
         verify(organizationServiceProxy).forward(
                 eq(HttpMethod.PATCH), eq("/organization/internal/organizations/k"),
-                any(), eq(MediaType.APPLICATION_JSON), eq(requestBody), any(Jwt.class));
+                any(), eq(MediaType.APPLICATION_JSON), argThat(b -> Arrays.equals(b, requestBody)), any(Jwt.class));
     }
 
     @Test
@@ -204,7 +220,7 @@ class OrganizationControllerTest {
         when(organizationServiceProxy.forward(any(), any(), any(), any(), any(), any()))
                 .thenReturn(ResponseEntity.ok().build());
 
-        mockMvc.perform(patch("/internal/organizations/{key}", "x#y").with(csrf())
+        mockMvc.perform(patch("/internal/organizations/{key}", "x#y").with(this.csrfToken())
                         .cookie(this.accessCookie("admin"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
@@ -222,7 +238,7 @@ class OrganizationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .body("{\"code\":\"ORG00003\"}".getBytes()));
 
-        mockMvc.perform(patch("/internal/organizations/k").with(csrf())
+        mockMvc.perform(patch("/internal/organizations/k").with(this.csrfToken())
                         .cookie(this.accessCookie("admin"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
@@ -232,7 +248,7 @@ class OrganizationControllerTest {
 
     @Test
     void updateInternalOrganization_organizerRole_returns403WithoutCallingProxy() throws Exception {
-        mockMvc.perform(patch("/internal/organizations/k").with(csrf())
+        mockMvc.perform(patch("/internal/organizations/k").with(this.csrfToken())
                         .cookie(this.accessCookie("organizer"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
@@ -244,7 +260,7 @@ class OrganizationControllerTest {
 
     @Test
     void updateInternalOrganization_noToken_returns401WithoutCallingProxy() throws Exception {
-        mockMvc.perform(patch("/internal/organizations/k").with(csrf())
+        mockMvc.perform(patch("/internal/organizations/k").with(this.csrfToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isUnauthorized())
@@ -270,7 +286,7 @@ class OrganizationControllerTest {
         when(organizationServiceProxy.forward(any(), any(), any(), any(), any(), any()))
                 .thenThrow(new ServiceRequestException(new IllegalStateException("down")));
 
-        mockMvc.perform(patch("/internal/organizations/k").with(csrf())
+        mockMvc.perform(patch("/internal/organizations/k").with(this.csrfToken())
                         .cookie(this.accessCookie("admin"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
@@ -283,7 +299,7 @@ class OrganizationControllerTest {
         when(organizationServiceProxy.forward(any(), any(), any(), any(), any(), any()))
                 .thenReturn(ResponseEntity.noContent().build());
 
-        mockMvc.perform(delete("/internal/organizations/k").with(csrf()).cookie(this.accessCookie("admin")))
+        mockMvc.perform(delete("/internal/organizations/k").with(this.csrfToken()).cookie(this.accessCookie("admin")))
                 .andExpect(status().isNoContent())
                 .andExpect(content().string(""));
 
@@ -297,7 +313,7 @@ class OrganizationControllerTest {
         when(organizationServiceProxy.forward(any(), any(), any(), any(), any(), any()))
                 .thenReturn(ResponseEntity.noContent().build());
 
-        mockMvc.perform(delete("/internal/organizations/{key}", "x#y").with(csrf())
+        mockMvc.perform(delete("/internal/organizations/{key}", "x#y").with(this.csrfToken())
                         .cookie(this.accessCookie("admin")))
                 .andExpect(status().isNoContent());
 
@@ -313,14 +329,15 @@ class OrganizationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .body("{\"code\":\"GEN00404\"}".getBytes()));
 
-        mockMvc.perform(delete("/internal/organizations/k").with(csrf()).cookie(this.accessCookie("admin")))
+        mockMvc.perform(delete("/internal/organizations/k").with(this.csrfToken()).cookie(this.accessCookie("admin")))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("GEN00404"));
     }
 
     @Test
     void deleteInternalOrganization_organizerRole_returns403WithoutCallingProxy() throws Exception {
-        mockMvc.perform(delete("/internal/organizations/k").with(csrf()).cookie(this.accessCookie("organizer")))
+        mockMvc.perform(delete("/internal/organizations/k").with(this.csrfToken())
+                        .cookie(this.accessCookie("organizer")))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("GEN00403"));
 
@@ -329,7 +346,7 @@ class OrganizationControllerTest {
 
     @Test
     void deleteInternalOrganization_noToken_returns401WithoutCallingProxy() throws Exception {
-        mockMvc.perform(delete("/internal/organizations/k").with(csrf()))
+        mockMvc.perform(delete("/internal/organizations/k").with(this.csrfToken()))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("GEN00401"));
 
@@ -350,7 +367,7 @@ class OrganizationControllerTest {
         when(organizationServiceProxy.forward(any(), any(), any(), any(), any(), any()))
                 .thenThrow(new ServiceRequestException(new IllegalStateException("down")));
 
-        mockMvc.perform(delete("/internal/organizations/k").with(csrf()).cookie(this.accessCookie("admin")))
+        mockMvc.perform(delete("/internal/organizations/k").with(this.csrfToken()).cookie(this.accessCookie("admin")))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.code").value("GEN00500"));
     }

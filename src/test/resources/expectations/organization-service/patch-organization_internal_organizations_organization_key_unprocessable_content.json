@@ -9,7 +9,7 @@
       "Content-Type": ["application/json"]
     },
     "body": {
-      "title": "Unprocessable Entity",
+      "title": "Unprocessable Content",
       "message": "The organization status cannot be changed.",
       "code": "ORG00003",
       "extra_fields": []
