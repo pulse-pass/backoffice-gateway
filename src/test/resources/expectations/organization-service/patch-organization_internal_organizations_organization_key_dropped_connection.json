@@ -1,0 +1,9 @@
+{
+  "httpRequest": {
+    "method": "PATCH",
+    "path": "/organization/internal/organizations/{organization_key}"
+  },
+  "httpError": {
+    "dropConnection": true
+  }
+}

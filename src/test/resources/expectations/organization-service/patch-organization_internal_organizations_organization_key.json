@@ -1,0 +1,18 @@
+{
+  "httpRequest": {
+    "method": "PATCH",
+    "path": "/organization/internal/organizations/{organization_key}"
+  },
+  "httpResponse": {
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": ["application/json"]
+    },
+    "body": {
+      "organization_key": "organization-from-target",
+      "organization_status": "REJECTED",
+      "organization_rejection_reason": "INACTIVE_DOCUMENT",
+      "organization_rejection_reason_description": "CNPJ inapto."
+    }
+  }
+}

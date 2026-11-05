@@ -1,0 +1,18 @@
+{
+  "httpRequest": {
+    "method": "PATCH",
+    "path": "/organization/internal/organizations/{organization_key}"
+  },
+  "httpResponse": {
+    "statusCode": 422,
+    "headers": {
+      "Content-Type": ["application/json"]
+    },
+    "body": {
+      "title": "Unprocessable Content",
+      "message": "The organization status cannot be changed.",
+      "code": "ORG00003",
+      "extra_fields": []
+    }
+  }
+}

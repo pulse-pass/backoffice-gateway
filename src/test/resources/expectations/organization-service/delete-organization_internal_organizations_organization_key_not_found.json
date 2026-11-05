@@ -1,0 +1,18 @@
+{
+  "httpRequest": {
+    "method": "DELETE",
+    "path": "/organization/internal/organizations/{organization_key}"
+  },
+  "httpResponse": {
+    "statusCode": 404,
+    "headers": {
+      "Content-Type": ["application/json"]
+    },
+    "body": {
+      "title": "Not Found",
+      "message": "Resource not found.",
+      "code": "GEN00404",
+      "extra_fields": []
+    }
+  }
+}

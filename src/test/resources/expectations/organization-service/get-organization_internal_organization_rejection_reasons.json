@@ -1,0 +1,24 @@
+{
+  "httpRequest": {
+    "method": "GET",
+    "path": "/organization/internal/organization_rejection_reasons"
+  },
+  "httpResponse": {
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": ["application/json"]
+    },
+    "body": {
+      "data": [
+        {
+          "organization_rejection_reason": "INACTIVE_DOCUMENT",
+          "organization_rejection_reason_description": "CNPJ inapto."
+        }
+      ],
+      "pagination": {
+        "page": 1,
+        "page_size": 30
+      }
+    }
+  }
+}
