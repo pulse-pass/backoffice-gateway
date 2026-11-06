@@ -9,8 +9,12 @@
       "Content-Type": ["application/json"]
     },
     "body": {
-      "person_key": "7f1c1a56-2b1b-4a53-9a43-1f2b5d3d1a11",
-      "document_number": "12345678000195"
+      "email": "contato@lenhaproducoes.com.br",
+      "person": {
+        "person_key": "7f1c1a56-2b1b-4a53-9a43-1f2b5d3d1a11",
+        "document_number": "12345678000195",
+        "name": "Lenha Producoes"
+      }
     }
   }
 }

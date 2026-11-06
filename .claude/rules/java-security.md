@@ -23,7 +23,7 @@ paths:
 - **BGW-106** `publicRoutes` is used both by `permitAll()` and by `CookieBearerTokenResolver`, which returns null on them: public routes ignore the session cookie, so an expired or invalid one there is not a 401.
 - **BGW-107** `POST /auth/logout` and `GET /auth/me` require only a valid token of any role (`authenticated()`), so a buyer who tried the backoffice can still end the session and read who they are.
 - **BGW-108** Everything else requires `ORGANIZER` or `ADMIN`; a new public route is added explicitly to `publicRoutes`, never by loosening `anyRequest`.
-- **BGW-109** Routes resolved by the token (`GET /organizations`, `GET /legal_persons/{legal_person_key}`) require `hasRole("ORGANIZER")`, declared before `anyRequest()`: no token is 401 and another role is 403.
+- **BGW-109** Routes resolved by the token (`GET /organizations`, `GET /persons/{person_key}`, `GET /legal_persons/{legal_person_key}/collaborators`) require `hasRole("ORGANIZER")`, declared before `anyRequest()`: no token is 401 and another role is 403.
 - **BGW-110** Internal routes (`/internal/**`, any method) require `hasRole("ADMIN")`, declared before `anyRequest()`: no token is 401 and an organizer or buyer is 403.
 
 ## Headers to the services

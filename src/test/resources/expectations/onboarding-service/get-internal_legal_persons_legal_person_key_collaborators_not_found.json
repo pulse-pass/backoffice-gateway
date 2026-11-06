@@ -1,0 +1,20 @@
+{
+  "httpRequest": {
+    "method": "GET",
+    "path": "/onboarding/internal/legal_persons/{legal_person_key}/collaborators"
+  },
+  "httpResponse": {
+    "statusCode": 404,
+    "headers": {
+      "Content-Type": [
+        "application/json"
+      ]
+    },
+    "body": {
+      "title": "Not Found",
+      "message": "The person was not found.",
+      "code": "ONB00009",
+      "extra_fields": []
+    }
+  }
+}

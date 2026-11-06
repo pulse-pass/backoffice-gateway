@@ -101,7 +101,8 @@ public class SecurityConfiguration {
                         .requestMatchers(HttpMethod.POST, "/auth/logout").authenticated()
                         .requestMatchers(HttpMethod.GET, "/auth/me").authenticated()
                         .requestMatchers(HttpMethod.GET, "/organizations").hasRole("ORGANIZER")
-                        .requestMatchers(HttpMethod.GET, "/legal_persons/*").hasRole("ORGANIZER")
+                        .requestMatchers(HttpMethod.GET, "/persons/*").hasRole("ORGANIZER")
+                        .requestMatchers(HttpMethod.GET, "/legal_persons/*/collaborators").hasRole("ORGANIZER")
                         .requestMatchers("/internal/**").hasRole("ADMIN")
                         .anyRequest().hasAnyRole("ORGANIZER", "ADMIN"))
                 .exceptionHandling(handling -> handling

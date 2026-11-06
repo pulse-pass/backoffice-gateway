@@ -1,0 +1,35 @@
+{
+  "httpRequest": {
+    "method": "GET",
+    "path": "/onboarding/internal/legal_persons/{legal_person_key}/collaborators"
+  },
+  "httpResponse": {
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": [
+        "application/json"
+      ]
+    },
+    "body": {
+      "data": [
+        {
+          "legal_person_collaborator_key": "collaborator-from-target",
+          "collaborator_role": "OWNER",
+          "legal_person_collaborator_status": "ACTIVE",
+          "natural_person": {
+            "email": "maria@pulseeventos.com.br",
+            "person": {
+              "person_key": "owner-from-target",
+              "name": "Maria Souza",
+              "document_number": "04833127012"
+            }
+          }
+        }
+      ],
+      "pagination": {
+        "page": 1,
+        "page_size": 10
+      }
+    }
+  }
+}

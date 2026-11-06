@@ -19,3 +19,4 @@ paths:
 - **BGW-036** Internal write routes need the CSRF token like any authenticated write.
 - **BGW-037** JSON in snake_case.
 - **BGW-038** List routes follow the services' `PaginatedResponse<T>(data, pagination{page, page_size})` and are forwarded unchanged, query string (`page`, `page_size`) included.
+- **BGW-219** A response root carries the fields of the route's entity; fields of another entity go in a nested object named after it, and no column repeats a key to flatten a response.

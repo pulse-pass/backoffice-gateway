@@ -13,20 +13,19 @@ import java.util.TreeMap;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
-class TestGetInternalLegalPerson extends BaseIntegrationTest {
+class TestGetInternalPerson extends BaseIntegrationTest {
 
-    private static final String GET_INTERNAL_LEGAL_PERSON = "/internal/legal_persons/{legal_person_key}";
+    private static final String GET_INTERNAL_PERSON = "/internal/persons/{person_key}";
 
     @Test
     @SuppressWarnings("unchecked")
-    void readInternalLegalPerson_adminCookie_forwardsJwtHeadersAndReturnsTargetBody() {
+    void readInternalPerson_adminCookie_forwardsJwtHeadersAndReturnsTargetBody() {
         MockTools.clearMocker();
-        String legalPersonKey = UUID.randomUUID().toString();
         String personKey = UUID.randomUUID().toString();
         MockTools.addExpectation(
-                "onboarding-service/get-internal_legal_persons_legal_person_key",
-                Map.of("legal_person_key", legalPersonKey),
-                Map.of("payload", Map.of("legal_person_key", legalPersonKey)));
+                "onboarding-service/get-internal_persons_person_key",
+                Map.of("person_key", personKey),
+                Map.of("payload", Map.of("person_key", personKey)));
 
         String token = TokenTools.sign("http://pulse-pass-keycloak:8080/realms/pulse-pass",
                 Instant.now().minusSeconds(60), Instant.now().plusSeconds(300),
@@ -40,26 +39,28 @@ class TestGetInternalLegalPerson extends BaseIntegrationTest {
                     .header("selected-agent-key", "forged-agent")
                     .header("internal-token", "forged-token")
                 .when()
-                    .get(GET_INTERNAL_LEGAL_PERSON, legalPersonKey)
+                    .get(GET_INTERNAL_PERSON, personKey)
                 .then()
                     .extract().response();
 
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(response.contentType()).isEqualTo("application/json");
-        assertThat(response.jsonPath().getMap("$")).isEqualTo(Map.of(
-                "legal_person_key", legalPersonKey,
-                "name", "Pulse Eventos Ltda",
-                "document_number", "34512889000107",
-                "email", "contato@pulseeventos.com.br",
-                "created_at", "2026-10-09T14:12:00Z",
-                "phone_numbers", List.of(Map.of("country_code", "55", "area_code", "11", "number", "987654321")),
-                "owner", Map.of(
-                        "person_key", "person-from-target",
-                        "name", "Maria Souza",
-                        "document_number", "04833127012",
-                        "email", "maria@pulseeventos.com.br")));
+        assertThat(response.jsonPath().getString("person_key")).isEqualTo(personKey);
+        assertThat(response.jsonPath().getString("person_type")).isEqualTo("LEGAL");
+        assertThat(response.jsonPath().getString("name")).isEqualTo("Pulse Eventos Ltda");
+        assertThat(response.jsonPath().getString("document_number")).isEqualTo("34512889000107");
+        assertThat(response.jsonPath().getString("created_at")).isEqualTo("2026-10-09T14:12:00Z");
+        assertThat(response.jsonPath().getList("phone_numbers")).containsExactly(
+                Map.of("country_code", "55", "area_code", "11", "number", "987654321"));
+        assertThat(response.jsonPath().getString("legal_person.email")).isEqualTo("contato@pulseeventos.com.br");
+        assertThat(response.jsonPath().getString("legal_person.legal_person_company_type")).isEqualTo("LIMITED");
+        assertThat(response.jsonPath().getString("legal_person.monthly_revenue_amount")).isEqualTo("25000.0");
+        assertThat(response.jsonPath().getString("legal_person.legal_person_address.postal_code"))
+                .isEqualTo("01310100");
+        assertThat(response.jsonPath().getString("legal_person.owner")).isNull();
+        assertThat(response.jsonPath().getString("natural_person")).isNull();
         List<Map<String, Object>> requests = MockTools.retrieveRequests(
-                "GET", "/onboarding/internal/legal_persons/" + legalPersonKey);
+                "GET", "/onboarding/internal/persons/" + personKey);
         assertThat(requests).hasSize(1);
         Map<String, List<String>> headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         headers.putAll((Map<String, List<String>>) requests.get(0).get("headers"));
@@ -73,11 +74,11 @@ class TestGetInternalLegalPerson extends BaseIntegrationTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void readInternalLegalPerson_keyWithEncodedQuery_reachesTargetAsSingleSegment() {
+    void readInternalPerson_keyWithEncodedQuery_reachesTargetAsSingleSegment() {
         MockTools.clearMocker();
         MockTools.addExpectation(
-                "onboarding-service/get-internal_legal_persons_legal_person_key",
-                Map.of("legal_person_key", ".+"));
+                "onboarding-service/get-internal_persons_person_key",
+                Map.of("person_key", ".+"));
 
         String token = TokenTools.sign("http://pulse-pass-keycloak:8080/realms/pulse-pass",
                 Instant.now().minusSeconds(60), Instant.now().plusSeconds(300),
@@ -88,21 +89,21 @@ class TestGetInternalLegalPerson extends BaseIntegrationTest {
                     .urlEncodingEnabled(false)
                     .cookie("pulsepass_access_token", token)
                 .when()
-                    .get("/internal/legal_persons/x%3Fstatus=PENDING")
+                    .get("/internal/persons/x%3Fstatus=PENDING")
                 .then()
                     .extract().response();
 
         assertThat(response.statusCode()).isEqualTo(200);
         List<Map<String, Object>> requests = MockTools.retrieveRequests(
-                "GET", "/onboarding/internal/legal_persons/.+");
+                "GET", "/onboarding/internal/persons/.+");
         assertThat(requests).hasSize(1);
         assertThat(requests.get(0).get("queryStringParameters")).isNull();
         assertThat((String) requests.get(0).get("path")).isEqualTo(
-                "/onboarding/internal/legal_persons/x%3Fstatus=PENDING");
+                "/onboarding/internal/persons/x%3Fstatus=PENDING");
     }
 
     @Test
-    void readInternalLegalPerson_keyWithEncodedSlashAndDots_doesNotReachOtherTargetRoutes() {
+    void readInternalPerson_keyWithEncodedSlashAndDots_doesNotReachOtherTargetRoutes() {
         MockTools.clearMocker();
 
         String token = TokenTools.sign("http://pulse-pass-keycloak:8080/realms/pulse-pass",
@@ -114,7 +115,7 @@ class TestGetInternalLegalPerson extends BaseIntegrationTest {
                     .urlEncodingEnabled(false)
                     .cookie("pulsepass_access_token", token)
                 .when()
-                    .get("/internal/legal_persons/..%2Forganizations")
+                    .get("/internal/persons/..%2Forganizations")
                 .then()
                     .extract().response();
 
@@ -124,11 +125,11 @@ class TestGetInternalLegalPerson extends BaseIntegrationTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void readInternalLegalPerson_keyWithEncodedHash_reachesTargetAsSingleSegment() {
+    void readInternalPerson_keyWithEncodedHash_reachesTargetAsSingleSegment() {
         MockTools.clearMocker();
         MockTools.addExpectation(
-                "onboarding-service/get-internal_legal_persons_legal_person_key",
-                Map.of("legal_person_key", ".+"));
+                "onboarding-service/get-internal_persons_person_key",
+                Map.of("person_key", ".+"));
 
         String token = TokenTools.sign("http://pulse-pass-keycloak:8080/realms/pulse-pass",
                 Instant.now().minusSeconds(60), Instant.now().plusSeconds(300),
@@ -139,47 +140,47 @@ class TestGetInternalLegalPerson extends BaseIntegrationTest {
                     .urlEncodingEnabled(false)
                     .cookie("pulsepass_access_token", token)
                 .when()
-                    .get("/internal/legal_persons/x%23fragment")
+                    .get("/internal/persons/x%23fragment")
                 .then()
                     .extract().response();
 
         assertThat(response.statusCode()).isEqualTo(200);
         List<Map<String, Object>> requests = MockTools.retrieveRequests(
-                "GET", "/onboarding/internal/legal_persons/.+");
+                "GET", "/onboarding/internal/persons/.+");
         assertThat(requests).hasSize(1);
         assertThat(requests.get(0).get("queryStringParameters")).isNull();
         assertThat((String) requests.get(0).get("path")).isEqualTo(
-                "/onboarding/internal/legal_persons/x%23fragment");
+                "/onboarding/internal/persons/x%23fragment");
     }
 
     @Test
-    void readInternalLegalPerson_noCookie_returns401Gen00401WithoutCallingTarget() {
+    void readInternalPerson_noCookie_returns401Gen00401WithoutCallingTarget() {
         MockTools.clearMocker();
-        String legalPersonKey = UUID.randomUUID().toString();
+        String personKey = UUID.randomUUID().toString();
         MockTools.addExpectation(
-                "onboarding-service/get-internal_legal_persons_legal_person_key",
-                Map.of("legal_person_key", legalPersonKey));
+                "onboarding-service/get-internal_persons_person_key",
+                Map.of("person_key", personKey));
 
         Response response = given()
                     .header("Accept-Language", "en")
                 .when()
-                    .get(GET_INTERNAL_LEGAL_PERSON, legalPersonKey)
+                    .get(GET_INTERNAL_PERSON, personKey)
                 .then()
                     .extract().response();
 
         assertThat(response.statusCode()).isEqualTo(401);
         assertThat(response.jsonPath().getString("code")).isEqualTo("GEN00401");
-        assertThat(MockTools.retrieveRequests("GET", "/onboarding/internal/legal_persons/" + legalPersonKey))
+        assertThat(MockTools.retrieveRequests("GET", "/onboarding/internal/persons/" + personKey))
                 .isEmpty();
     }
 
     @Test
-    void readInternalLegalPerson_tamperedCookie_returns401Gen00401WithoutCallingTarget() {
+    void readInternalPerson_tamperedCookie_returns401Gen00401WithoutCallingTarget() {
         MockTools.clearMocker();
-        String legalPersonKey = UUID.randomUUID().toString();
+        String personKey = UUID.randomUUID().toString();
         MockTools.addExpectation(
-                "onboarding-service/get-internal_legal_persons_legal_person_key",
-                Map.of("legal_person_key", legalPersonKey));
+                "onboarding-service/get-internal_persons_person_key",
+                Map.of("person_key", personKey));
         String signed = TokenTools.sign("http://pulse-pass-keycloak:8080/realms/pulse-pass",
                 Instant.now().minusSeconds(60), Instant.now().plusSeconds(300),
                 Map.of("person_key", UUID.randomUUID().toString(),
@@ -190,22 +191,22 @@ class TestGetInternalLegalPerson extends BaseIntegrationTest {
                     .cookie("pulsepass_access_token", token)
                     .header("Accept-Language", "en")
                 .when()
-                    .get(GET_INTERNAL_LEGAL_PERSON, legalPersonKey)
+                    .get(GET_INTERNAL_PERSON, personKey)
                 .then()
                     .extract().response();
 
         assertThat(response.statusCode()).isEqualTo(401);
         assertThat(response.jsonPath().getString("code")).isEqualTo("GEN00401");
-        assertThat(MockTools.retrieveRequests("GET", "/onboarding/internal/legal_persons/" + legalPersonKey)).isEmpty();
+        assertThat(MockTools.retrieveRequests("GET", "/onboarding/internal/persons/" + personKey)).isEmpty();
     }
 
     @Test
-    void readInternalLegalPerson_expiredCookie_returns401Gen00401WithoutCallingTarget() {
+    void readInternalPerson_expiredCookie_returns401Gen00401WithoutCallingTarget() {
         MockTools.clearMocker();
-        String legalPersonKey = UUID.randomUUID().toString();
+        String personKey = UUID.randomUUID().toString();
         MockTools.addExpectation(
-                "onboarding-service/get-internal_legal_persons_legal_person_key",
-                Map.of("legal_person_key", legalPersonKey));
+                "onboarding-service/get-internal_persons_person_key",
+                Map.of("person_key", personKey));
         String token = TokenTools.sign("http://pulse-pass-keycloak:8080/realms/pulse-pass",
                 Instant.now().minusSeconds(600), Instant.now().minusSeconds(300),
                 Map.of("person_key", UUID.randomUUID().toString(),
@@ -215,22 +216,22 @@ class TestGetInternalLegalPerson extends BaseIntegrationTest {
                     .cookie("pulsepass_access_token", token)
                     .header("Accept-Language", "en")
                 .when()
-                    .get(GET_INTERNAL_LEGAL_PERSON, legalPersonKey)
+                    .get(GET_INTERNAL_PERSON, personKey)
                 .then()
                     .extract().response();
 
         assertThat(response.statusCode()).isEqualTo(401);
         assertThat(response.jsonPath().getString("code")).isEqualTo("GEN00401");
-        assertThat(MockTools.retrieveRequests("GET", "/onboarding/internal/legal_persons/" + legalPersonKey)).isEmpty();
+        assertThat(MockTools.retrieveRequests("GET", "/onboarding/internal/persons/" + personKey)).isEmpty();
     }
 
     @Test
-    void readInternalLegalPerson_cookieSignedByOtherKey_returns401Gen00401WithoutCallingTarget() {
+    void readInternalPerson_cookieSignedByOtherKey_returns401Gen00401WithoutCallingTarget() {
         MockTools.clearMocker();
-        String legalPersonKey = UUID.randomUUID().toString();
+        String personKey = UUID.randomUUID().toString();
         MockTools.addExpectation(
-                "onboarding-service/get-internal_legal_persons_legal_person_key",
-                Map.of("legal_person_key", legalPersonKey));
+                "onboarding-service/get-internal_persons_person_key",
+                Map.of("person_key", personKey));
         String token = TokenTools.sign(TokenTools.otherPrivateKey(), "http://pulse-pass-keycloak:8080/realms/pulse-pass",
                 Instant.now().minusSeconds(60), Instant.now().plusSeconds(300),
                 Map.of("person_key", UUID.randomUUID().toString(),
@@ -240,22 +241,22 @@ class TestGetInternalLegalPerson extends BaseIntegrationTest {
                     .cookie("pulsepass_access_token", token)
                     .header("Accept-Language", "en")
                 .when()
-                    .get(GET_INTERNAL_LEGAL_PERSON, legalPersonKey)
+                    .get(GET_INTERNAL_PERSON, personKey)
                 .then()
                     .extract().response();
 
         assertThat(response.statusCode()).isEqualTo(401);
         assertThat(response.jsonPath().getString("code")).isEqualTo("GEN00401");
-        assertThat(MockTools.retrieveRequests("GET", "/onboarding/internal/legal_persons/" + legalPersonKey)).isEmpty();
+        assertThat(MockTools.retrieveRequests("GET", "/onboarding/internal/persons/" + personKey)).isEmpty();
     }
 
     @Test
-    void readInternalLegalPerson_wrongIssuerCookie_returns401Gen00401WithoutCallingTarget() {
+    void readInternalPerson_wrongIssuerCookie_returns401Gen00401WithoutCallingTarget() {
         MockTools.clearMocker();
-        String legalPersonKey = UUID.randomUUID().toString();
+        String personKey = UUID.randomUUID().toString();
         MockTools.addExpectation(
-                "onboarding-service/get-internal_legal_persons_legal_person_key",
-                Map.of("legal_person_key", legalPersonKey));
+                "onboarding-service/get-internal_persons_person_key",
+                Map.of("person_key", personKey));
         String token = TokenTools.sign("http://other.example/realms/pulse-pass",
                 Instant.now().minusSeconds(60), Instant.now().plusSeconds(300),
                 Map.of("person_key", UUID.randomUUID().toString(),
@@ -265,26 +266,26 @@ class TestGetInternalLegalPerson extends BaseIntegrationTest {
                     .cookie("pulsepass_access_token", token)
                     .header("Accept-Language", "en")
                 .when()
-                    .get(GET_INTERNAL_LEGAL_PERSON, legalPersonKey)
+                    .get(GET_INTERNAL_PERSON, personKey)
                 .then()
                     .extract().response();
 
         assertThat(response.statusCode()).isEqualTo(401);
         assertThat(response.jsonPath().getString("code")).isEqualTo("GEN00401");
-        assertThat(MockTools.retrieveRequests("GET", "/onboarding/internal/legal_persons/" + legalPersonKey)).isEmpty();
+        assertThat(MockTools.retrieveRequests("GET", "/onboarding/internal/persons/" + personKey)).isEmpty();
     }
 
     @Test
-    void readInternalLegalPerson_organizerCookie_returns403Gen00403WithoutCallingTarget() {
+    void readInternalPerson_organizerCookie_returns403Gen00403WithoutCallingTarget() {
         MockTools.clearMocker();
-        String legalPersonKey = UUID.randomUUID().toString();
+        String personKey = UUID.randomUUID().toString();
         MockTools.addExpectation(
-                "onboarding-service/get-internal_legal_persons_legal_person_key",
-                Map.of("legal_person_key", legalPersonKey));
+                "onboarding-service/get-internal_persons_person_key",
+                Map.of("person_key", personKey));
 
         String token = TokenTools.sign("http://pulse-pass-keycloak:8080/realms/pulse-pass",
                 Instant.now().minusSeconds(60), Instant.now().plusSeconds(300),
-                Map.of("person_key", UUID.randomUUID().toString(), "legal_person_key", legalPersonKey,
+                Map.of("person_key", UUID.randomUUID().toString(), "legal_person_key", personKey,
                         "realm_access", Map.of("roles", List.of("organizer"))));
 
         Response response = given()
@@ -293,23 +294,23 @@ class TestGetInternalLegalPerson extends BaseIntegrationTest {
                     .header("selected-user-roles", "admin")
                     .header("internal-token", "forged-token")
                 .when()
-                    .get(GET_INTERNAL_LEGAL_PERSON, legalPersonKey)
+                    .get(GET_INTERNAL_PERSON, personKey)
                 .then()
                     .extract().response();
 
         assertThat(response.statusCode()).isEqualTo(403);
         assertThat(response.jsonPath().getString("code")).isEqualTo("GEN00403");
-        assertThat(MockTools.retrieveRequests("GET", "/onboarding/internal/legal_persons/" + legalPersonKey))
+        assertThat(MockTools.retrieveRequests("GET", "/onboarding/internal/persons/" + personKey))
                 .isEmpty();
     }
 
     @Test
-    void readInternalLegalPerson_buyerCookie_returns403Gen00403WithoutCallingTarget() {
+    void readInternalPerson_buyerCookie_returns403Gen00403WithoutCallingTarget() {
         MockTools.clearMocker();
-        String legalPersonKey = UUID.randomUUID().toString();
+        String personKey = UUID.randomUUID().toString();
         MockTools.addExpectation(
-                "onboarding-service/get-internal_legal_persons_legal_person_key",
-                Map.of("legal_person_key", legalPersonKey));
+                "onboarding-service/get-internal_persons_person_key",
+                Map.of("person_key", personKey));
 
         String token = TokenTools.sign("http://pulse-pass-keycloak:8080/realms/pulse-pass",
                 Instant.now().minusSeconds(60), Instant.now().plusSeconds(300),
@@ -322,23 +323,23 @@ class TestGetInternalLegalPerson extends BaseIntegrationTest {
                     .header("selected-user-roles", "admin")
                     .header("internal-token", "forged-token")
                 .when()
-                    .get(GET_INTERNAL_LEGAL_PERSON, legalPersonKey)
+                    .get(GET_INTERNAL_PERSON, personKey)
                 .then()
                     .extract().response();
 
         assertThat(response.statusCode()).isEqualTo(403);
         assertThat(response.jsonPath().getString("code")).isEqualTo("GEN00403");
-        assertThat(MockTools.retrieveRequests("GET", "/onboarding/internal/legal_persons/" + legalPersonKey))
+        assertThat(MockTools.retrieveRequests("GET", "/onboarding/internal/persons/" + personKey))
                 .isEmpty();
     }
 
     @Test
-    void readInternalLegalPerson_targetNotFound_returnsTargetStatusAndBody() {
+    void readInternalPerson_targetNotFound_returnsTargetStatusAndBody() {
         MockTools.clearMocker();
-        String legalPersonKey = UUID.randomUUID().toString();
+        String personKey = UUID.randomUUID().toString();
         MockTools.addExpectation(
-                "onboarding-service/get-internal_legal_persons_legal_person_key_not_found",
-                Map.of("legal_person_key", legalPersonKey));
+                "onboarding-service/get-internal_persons_person_key_not_found",
+                Map.of("person_key", personKey));
 
         String token = TokenTools.sign("http://pulse-pass-keycloak:8080/realms/pulse-pass",
                 Instant.now().minusSeconds(60), Instant.now().plusSeconds(300),
@@ -348,25 +349,25 @@ class TestGetInternalLegalPerson extends BaseIntegrationTest {
         Response response = given()
                     .cookie("pulsepass_access_token", token)
                 .when()
-                    .get(GET_INTERNAL_LEGAL_PERSON, legalPersonKey)
+                    .get(GET_INTERNAL_PERSON, personKey)
                 .then()
                     .extract().response();
 
         assertThat(response.statusCode()).isEqualTo(404);
         assertThat(response.contentType()).isEqualTo("application/json");
-        assertThat(response.jsonPath().getString("code")).isEqualTo("GEN00404");
+        assertThat(response.jsonPath().getString("code")).isEqualTo("ONB00009");
         assertThat(response.jsonPath().getString("title")).isEqualTo("Not Found");
-        assertThat(response.jsonPath().getString("message")).isEqualTo("Resource not found.");
+        assertThat(response.jsonPath().getString("message")).isEqualTo("The person was not found.");
         assertThat(response.jsonPath().getList("extra_fields")).isEmpty();
     }
 
     @Test
-    void readInternalLegalPerson_targetDropsConnection_returns500Gen00500WithoutDetails() {
+    void readInternalPerson_targetDropsConnection_returns500Gen00500WithoutDetails() {
         MockTools.clearMocker();
-        String legalPersonKey = UUID.randomUUID().toString();
+        String personKey = UUID.randomUUID().toString();
         MockTools.addExpectation(
-                "onboarding-service/get-internal_legal_persons_legal_person_key_dropped_connection",
-                Map.of("legal_person_key", legalPersonKey));
+                "onboarding-service/get-internal_persons_person_key_dropped_connection",
+                Map.of("person_key", personKey));
         String token = TokenTools.sign("http://pulse-pass-keycloak:8080/realms/pulse-pass",
                 Instant.now().minusSeconds(60), Instant.now().plusSeconds(300),
                 Map.of("person_key", UUID.randomUUID().toString(),
@@ -376,7 +377,7 @@ class TestGetInternalLegalPerson extends BaseIntegrationTest {
                     .cookie("pulsepass_access_token", token)
                     .header("Accept-Language", "en")
                 .when()
-                    .get(GET_INTERNAL_LEGAL_PERSON, legalPersonKey)
+                    .get(GET_INTERNAL_PERSON, personKey)
                 .then()
                     .extract().response();
 
