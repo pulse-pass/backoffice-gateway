@@ -1,0 +1,40 @@
+{
+  "httpRequest": {
+    "method": "GET",
+    "path": "/onboarding/internal/persons/{person_key}"
+  },
+  "httpResponse": {
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": ["application/json"]
+    },
+    "body": {
+      "person_key": "person-from-target",
+      "person_type": "LEGAL",
+      "name": "Pulse Eventos Ltda",
+      "document_number": "34512889000107",
+      "created_at": "2026-10-09T14:12:00Z",
+      "phone_numbers": [
+        {
+          "country_code": "55",
+          "area_code": "11",
+          "number": "987654321"
+        }
+      ],
+      "legal_person": {
+        "email": "contato@pulseeventos.com.br",
+        "legal_person_company_type": "LIMITED",
+        "monthly_revenue_amount": 25000.00,
+        "legal_person_address": {
+          "legal_person_address_key": "address-from-target",
+          "postal_code": "01310100",
+          "street": "Avenida Paulista",
+          "number": "1000",
+          "complement": null,
+          "neighborhood": "Bela Vista"
+        }
+      },
+      "natural_person": null
+    }
+  }
+}

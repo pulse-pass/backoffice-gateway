@@ -27,7 +27,8 @@ class TestPostCreateLegalPerson extends BaseIntegrationTest {
         String document = String.format("%014d", ThreadLocalRandom.current().nextLong(100_000_000_000_000L));
         String personKey = UUID.randomUUID().toString();
         MockTools.addExpectation("onboarding-service/post-legal_persons", Map.of(),
-                Map.of("payload", Map.of("person_key", personKey, "document_number", document)));
+                Map.of("payload", Map.of("person", Map.of(
+                        "person_key", personKey, "document_number", document, "name", "Lenha Producoes"))));
 
         Response response = given()
                     .cookie("XSRF-TOKEN", csrf)
@@ -44,7 +45,8 @@ class TestPostCreateLegalPerson extends BaseIntegrationTest {
         assertThat(response.statusCode()).isEqualTo(201);
         assertThat(response.contentType()).isEqualTo("application/json");
         assertThat(response.jsonPath().getMap("$"))
-                .isEqualTo(Map.of("person_key", personKey, "document_number", document));
+                .isEqualTo(Map.of("email", "contato@lenhaproducoes.com.br", "person", Map.of(
+                        "person_key", personKey, "document_number", document, "name", "Lenha Producoes")));
         List<Map<String, Object>> requests = MockTools.retrieveRequests("POST", "/onboarding/legal_persons");
         assertThat(requests).hasSize(1);
         assertThat(requests.get(0).get("body").toString()).contains(document, "Lenha Producoes");

@@ -33,20 +33,46 @@ public class OnboardingController {
                 HttpMethod.POST, "/onboarding/legal_persons", request, null, body, null);
     }
 
-    @GetMapping("/legal_persons/{legalPersonKey}")
-    public ResponseEntity<byte[]> readLegalPerson(
+    @GetMapping("/persons/{personKey}")
+    public ResponseEntity<byte[]> readPerson(
+            HttpServletRequest request,
+            @PathVariable String personKey,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        return this.onboardingServiceProxy.forward(
+                HttpMethod.GET,
+                "/onboarding/persons/" + UriUtils.encodePathSegment(personKey, StandardCharsets.UTF_8),
+                request, null, null, jwt);
+    }
+
+    @GetMapping("/internal/persons/{personKey}")
+    public ResponseEntity<byte[]> readInternalPerson(
+            HttpServletRequest request,
+            @PathVariable String personKey,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        return this.onboardingServiceProxy.forward(
+                HttpMethod.GET,
+                "/onboarding/internal/persons/"
+                        + UriUtils.encodePathSegment(personKey, StandardCharsets.UTF_8),
+                request, null, null, jwt);
+    }
+
+    @GetMapping("/legal_persons/{legalPersonKey}/collaborators")
+    public ResponseEntity<byte[]> listLegalPersonCollaborators(
             HttpServletRequest request,
             @PathVariable String legalPersonKey,
             @AuthenticationPrincipal Jwt jwt
     ) {
         return this.onboardingServiceProxy.forward(
                 HttpMethod.GET,
-                "/onboarding/legal_persons/" + UriUtils.encodePathSegment(legalPersonKey, StandardCharsets.UTF_8),
+                "/onboarding/legal_persons/"
+                        + UriUtils.encodePathSegment(legalPersonKey, StandardCharsets.UTF_8) + "/collaborators",
                 request, null, null, jwt);
     }
 
-    @GetMapping("/internal/legal_persons/{legalPersonKey}")
-    public ResponseEntity<byte[]> readInternalLegalPerson(
+    @GetMapping("/internal/legal_persons/{legalPersonKey}/collaborators")
+    public ResponseEntity<byte[]> listInternalLegalPersonCollaborators(
             HttpServletRequest request,
             @PathVariable String legalPersonKey,
             @AuthenticationPrincipal Jwt jwt
@@ -54,7 +80,7 @@ public class OnboardingController {
         return this.onboardingServiceProxy.forward(
                 HttpMethod.GET,
                 "/onboarding/internal/legal_persons/"
-                        + UriUtils.encodePathSegment(legalPersonKey, StandardCharsets.UTF_8),
+                        + UriUtils.encodePathSegment(legalPersonKey, StandardCharsets.UTF_8) + "/collaborators",
                 request, null, null, jwt);
     }
 
