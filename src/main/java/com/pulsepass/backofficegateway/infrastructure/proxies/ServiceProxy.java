@@ -88,9 +88,7 @@ public abstract class ServiceProxy {
         } catch (RestClientException ex) {
             logger.error(
                     "ServiceProxy.forward - Request failed {}",
-                    Map.of("service", this.serviceName, "method", method.name(),
-                            "path", path),
-                    ex
+                    Map.of("service", this.serviceName, "failure", ex.getClass().getSimpleName())
             );
             throw new ServiceRequestException(ex);
         }

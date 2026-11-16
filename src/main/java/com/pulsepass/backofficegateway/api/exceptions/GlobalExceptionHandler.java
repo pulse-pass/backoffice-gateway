@@ -2,7 +2,6 @@ package com.pulsepass.backofficegateway.api.exceptions;
 
 import com.pulsepass.backofficegateway.infrastructure.proxies.ServiceRequestException;
 import java.util.List;
-import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.MessageSource;
@@ -50,10 +49,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(NoResourceFoundException ex) {
-        logger.warn(
-                "GlobalExceptionHandler.handleNotFound - Resource not found {}",
-                Map.of("path", ex.getResourcePath())
-        );
+        logger.warn("GlobalExceptionHandler.handleNotFound - Resource not found");
         return build(HttpStatus.NOT_FOUND, "error.not_found", "GEN00404", List.of());
     }
 
@@ -61,10 +57,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleMethodNotAllowed(
             HttpRequestMethodNotSupportedException ex
     ) {
-        logger.warn(
-                "GlobalExceptionHandler.handleMethodNotAllowed - Method not allowed {}",
-                Map.of("method", ex.getMethod())
-        );
+        logger.warn("GlobalExceptionHandler.handleMethodNotAllowed - Method not allowed");
         return build(HttpStatus.METHOD_NOT_ALLOWED, "error.method_not_allowed", "GEN00405", List.of());
     }
 
